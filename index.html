@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>3D Bike Dodger</title>
+  <style>
+    body { margin: 0; overflow: hidden; font-family: Arial; background: #000; }
+    #ui { position: absolute; top: 10px; left: 10px; color: white; z-index: 100; font-size: 20px; font-weight: bold; text-shadow: 2px 2px 4px #000; }
+    #start { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(0,0,0,0.9); color: white; padding: 30px; border-radius: 15px; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.8); }
+    button { padding: 15px 30px; margin: 10px; background: #a77373; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 18px; transition: background 0.3s; }
+    button:hover { background: #8b5a5a; }
+    #instructions { font-size: 14px; margin-top: 20px; opacity: 0.8; }
+  </style>
+</head>
+<body>
+  <div id="ui">
+    <div>Score: <span id="score">0</span></div>
+    <div>Level: <span id="level">1</span></div>
+    <div>Speed: <span id="speed">30</span></div>
+  </div>
+  <div id="start">
+    <h2>3D BIKE SIMULATOR 🚀</h2>
+    <p>Select your BG Music 🎶</p>
+    <button onclick="startGame('game')">Game-Theme</button>
+    <button onclick="startGame('phonk')">Phonk-Theme</button>
+    <div id="instructions">Arrow Keys / A-D: Tilt into lanes<br>Mouse: Orbit (dev mode)</div>
+  </div>
+
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://unpkg.com/three@0.169.0/build/three.module.js",
+        "three/addons/": "https://unpkg.com/three@0.169.0/examples/jsm/"
+      }
+    }
+  </script>
+  <script type="module">
+    import * as THREE from 'three';
+    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+    // Globals
+    let scene, camera, renderer, roadMesh, controls, clock;
+    let gameStarted = false, isNight = false, score = 0, level = 1, roadSpeed = 30;
+    let prevCycle = 0, currentMusic = null;
+    const lanes = [-8, 0, 8]; // 3 lanes prep
+
+    // Init
+    function init() {
+      scene = new THREE.Scene();
+      updateFog();
+
+      camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+      camera.position.set(0, 8, 15);
+
+      renderer = new THREE.WebGLRenderer({ antialias: true });
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.shadowMap.enabled = true;
+      renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+      renderer.toneMapping = THREE.ACESFilmicToneMapping;
+      renderer.toneMappingExposure = 1.2;
+      document.body.appendChild(renderer.domElement);
+
+      // Lights
+      const ambient = new THREE.AmbientLight(0x80a0ff, 0.4);
+      scene.add(ambient);
+      const dirLight = new THREE.DirectionalLight(0xffffff, 1.2);
+      dirLight.position.set(10, 20, 10);
+      dirLight.castShadow = true;
+      dirLight.shadow.mapSize.width = 2048;
+      dirLight.shadow.mapSize.height = 2048;
+      scene.add(dirLight);
+
+      // Road: Procedural infinite
+      const roadGeometry = new THREE.PlaneGeometry(20, 400);
+      const roadTexture = new THREE.TextureLoader().load('https://opengameart.org/sites/default/files/asphalt_road_0.png');
+      roadTexture.wrapS = roadTexture.wrapT = THREE.RepeatWrapping;
+      roadTexture.repeat.set(3, 80); // Stripes effect
+      roadTexture.encoding = THREE.sRGBEncoding;
+      const roadMaterial = new THREE.MeshLambertMaterial({ map: roadTexture });
+      roadMesh = new THREE.Mesh(roadGeometry, roadMaterial);
+      roadMesh.rotation.x = -Math.PI / 2;
+      roadMesh.receiveShadow = true;
+      scene.add(roadMesh);
+
+      // Lane lines (yellow dashed)
+      const lineMat = new THREE.MeshBasicMaterial({ color: 0xffff00 });
+      lanes.forEach(x => {
+        const lineGeo = new THREE.PlaneGeometry(0.4, 400);
+        const line = new THREE.Mesh(lineGeo, lineMat);
+        line.rotation.x = -Math.PI / 2;
+        line.position.set(x, 0.02, 0);
+        scene.add(line);
+      });
+
+      // Controls
+      controls = new OrbitControls(camera, renderer.domElement);
+      controls.enableDamping = true;
+      controls.dampingFactor = 0.05;
+      controls.target.set(0, 2, 0);
+
+      // Input
+      const keys = {};
+      window.addEventListener('keydown', e => keys[e.code] = true);
+      window.addEventListener('keyup', e => keys[e.code] = false);
+
+      clock = new THREE.Clock();
+      animate(keys);
+    }
+
+    function animate(keys) {
+      requestAnimationFrame(() => animate(keys));
+      const delta = clock.getDelta();
+      controls.update();
+
+      if (gameStarted) {
+        // Infinite road scroll
+        roadMesh.position.z += roadSpeed * delta;
+        if (roadMesh.position.z > 200) roadMesh.position.z -= 400;
+
+        // Lane tilt proto (bike sim)
+        let tiltTarget = 0;
+        if (keys['ArrowLeft'] || keys['KeyA']) tiltTarget = -1;
+        if (keys['ArrowRight'] || keys['KeyD']) tiltTarget = 1;
+        camera.position.x = THREE.MathUtils.lerp(camera.position.x, tiltTarget * 10, 0.15);
+        camera.lookAt(tiltTarget * 2, 2, 0);
+
+        // Score & levels
+        score += delta * 100;
+        document.getElementById('score').textContent = Math.floor(score);
+        document.getElementById('speed').textContent = Math.floor(roadSpeed);
+        if (score > level * 1000) {
+          level++;
+          roadSpeed += 4;
+          document.getElementById('level').textContent = level;
+        }
+
+        // Day/Night cycle every 20s
+        const elapsed = clock.getElapsedTime();
+        const cycle = Math.floor(elapsed / 20) % 2;
+        if (cycle !== prevCycle) {
+          prevCycle = cycle;
+          toggleDayNight();
+        }
+      }
+
+      renderer.render(scene, camera);
+    }
+
+    function toggleDayNight() {
+      isNight = !isNight;
+      updateFog();
+      // Light tint
+      const dirLight = scene.children.find(c => c.type === 'DirectionalLight');
+      dirLight.color.setHSL(isNight ? 0.6 : 0.55, 1, 0.8);
+    }
+
+    function updateFog() {
+      scene.fog = new THREE.Fog(isNight ? 0x191970 : 0x87CEEB, 40, 300);
+    }
+
+    window.startGame = function(type) {
+      document.getElementById('start').style.display = 'none';
+      currentMusic = new Audio(`assets/${type === 'game' ? 'Game-Theme.mp3' : 'Phonk-Theme.mp3'}`);
+      currentMusic.volume = 0.5;
+      currentMusic.loop = true;
+      currentMusic.play();
+      gameStarted = true;
+      controls.enabled = false; // Lock for game
+    };
+
+    // Resize
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+
+    init();
+  </script>
+</body>
+</html>
