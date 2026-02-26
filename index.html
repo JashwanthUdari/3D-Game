@@ -6,9 +6,19 @@
   <title>3D Desert Snake Hunter</title>
   <style>
     body { margin:0; overflow:hidden; font-family:Arial; background:#000; }
-    #ui { position:absolute; top:10px; left:10px; color:white; z-index:100; font-size:20px; font-weight:bold; text-shadow:2px 2px 4px #000; }
-    #gameOver { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); background:rgba(0,0,0,0.9); color:white; padding:40px; border-radius:15px; text-align:center; display:none; z-index:200; }
-    button { padding:15px 30px; background:#a77373; color:white; border:none; border-radius:8px; cursor:pointer; font-size:18px; }
+    #ui { 
+      position:absolute; top:10px; left:10px; color:white; z-index:100; 
+      font-size:22px; font-weight:bold; text-shadow:2px 2px 6px #000; 
+    }
+    #gameOver { 
+      position:absolute; top:50%; left:50%; transform:translate(-50%,-50%);
+      background:rgba(0,0,0,0.92); color:white; padding:50px; border-radius:20px;
+      text-align:center; display:none; z-index:200; min-width:320px;
+    }
+    button { 
+      padding:18px 40px; background:#c0392b; color:white; border:none; 
+      border-radius:10px; cursor:pointer; font-size:20px; margin-top:20px;
+    }
   </style>
 </head>
 <body>
@@ -16,16 +26,18 @@
     <div>Score: <span id="score">0</span></div>
     <div>Length: <span id="length">1</span></div>
   </div>
+
   <div id="gameOver">
-    <h2>GAME OVER 🐍</h2>
+    <h2>GAME OVER</h2>
     <p>Score: <span id="finalScore">0</span></p>
-    <p>Rats Eaten: <span id="ratsEaten">0</span></p>
-    <button onclick="location.reload()">RESTART</button>
+    <p>Rats eaten: <span id="ratsEaten">0</span></p>
+    <button onclick="location.reload()">PLAY AGAIN</button>
   </div>
 
   <script type="importmap">
     {"imports":{"three":"https://unpkg.com/three@0.169.0/build/three.module.js","three/addons/":"https://unpkg.com/three@0.169.0/examples/jsm/"}}
   </script>
+
   <script type="module">
     import * as THREE from 'three';
     import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
@@ -34,102 +46,87 @@
     let score = 0, snakeLength = 1, time = 0;
     let snakeTargetX = 0, snakeCurrentX = 0;
     const roadHalfWidth = 12;
-    let bodySegments = [];
     let rats = [];
     let ratPool = [];
-    let spawnTimer = 0, gameOver = false, gameStarted = false;
+    let spawnTimer = 0;
+    let gameOver = false;
+    let gameStarted = false;
 
     function init() {
       scene = new THREE.Scene();
-      scene.fog = new THREE.Fog(0xc2b280, 50, 400);
+      scene.fog = new THREE.Fog(0xc9a87c, 60, 450); // warmer desert fog
 
-      camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-      camera.position.set(0, 6, 18);
+      camera = new THREE.PerspectiveCamera(80, window.innerWidth / window.innerHeight, 0.1, 1200);
+      camera.position.set(0, 5, 14); // closer & lower
 
       renderer = new THREE.WebGLRenderer({ antialias: true });
       renderer.setSize(window.innerWidth, window.innerHeight);
       renderer.shadowMap.enabled = true;
-      renderer.toneMapping = THREE.ACESFilmicToneMapping;
       document.body.appendChild(renderer.domElement);
 
-      // Desert lights
-      const ambient = new THREE.AmbientLight(0xffd700, 0.6);
-      scene.add(ambient);
-      const sun = new THREE.DirectionalLight(0xffa500, 1.2);
-      sun.position.set(20, 30, 10);
+      // Lights
+      scene.add(new THREE.AmbientLight(0xffd9a3, 0.7));
+      const sun = new THREE.DirectionalLight(0xfff0c2, 1.4);
+      sun.position.set(30, 50, 20);
       sun.castShadow = true;
-      sun.shadow.mapSize.width = 2048;
       scene.add(sun);
 
-      // Desert sand (procedural dunes)
+      // Desert ground
       const canvas = document.createElement('canvas');
       canvas.width = canvas.height = 1024;
       const ctx = canvas.getContext('2d');
-      const imageData = ctx.createImageData(1024, 1024);
-      for (let i = 0; i < imageData.data.length; i += 4) {
-        const x = (i / 4 % 1024) / 1024, y = Math.floor(i / 4 / 1024) / 1024;
-        const noise = Math.sin(x * 10) * Math.sin(y * 10) * 0.5 + 0.5 + Math.sin((x + y) * 20) * 0.2;
-        const color = 0xd2b48c + noise * 0x404040;
-        imageData.data[i] = (color >> 16) & 255;     // R
-        imageData.data[i+1] = (color >> 8) & 255;    // G
-        imageData.data[i+2] = color & 255;           // B
-        imageData.data[i+3] = 255;                   // A
+      const imgData = ctx.createImageData(1024, 1024);
+      for (let i = 0; i < imgData.data.length; i += 4) {
+        const x = (i / 4) % 1024 / 1024;
+        const y = Math.floor(i / 4 / 1024) / 1024;
+        const n = Math.sin(x*12)*Math.sin(y*12)*0.4 + Math.sin((x+y)*25)*0.3 + 0.5;
+        const col = 0xd4a373 + n * 0x503010;
+        imgData.data[i]   = (col >> 16) & 255;
+        imgData.data[i+1] = (col >> 8)  & 255;
+        imgData.data[i+2] = col & 255;
+        imgData.data[i+3] = 255;
       }
-      ctx.putImageData(imageData, 0, 0);
-      const sandTexture = new THREE.CanvasTexture(canvas);
-      sandTexture.wrapS = sandTexture.wrapT = THREE.RepeatWrapping;
-      sandTexture.repeat.set(8, 200);
-      sandTexture.generateMipmaps = false;
-      sandTexture.minFilter = THREE.LinearFilter;
+      ctx.putImageData(imgData, 0, 0);
 
-      const groundGeometry = new THREE.PlaneGeometry(24, 800);
-      groundMesh = new THREE.Mesh(groundGeometry, new THREE.MeshLambertMaterial({ map: sandTexture }));
+      const sandTex = new THREE.CanvasTexture(canvas);
+      sandTex.wrapS = sandTex.wrapT = THREE.RepeatWrapping;
+      sandTex.repeat.set(10, 220);
+      sandTex.generateMipmaps = false;
+
+      const groundGeo = new THREE.PlaneGeometry(28, 1000);
+      groundMesh = new THREE.Mesh(
+        groundGeo,
+        new THREE.MeshLambertMaterial({ map: sandTex })
+      );
       groundMesh.rotation.x = -Math.PI / 2;
       groundMesh.receiveShadow = true;
       scene.add(groundMesh);
 
-      // Snake Head
+      // Snake head (much larger)
       const loader = new GLTFLoader();
       loader.load('assets/Snake.glb', (gltf) => {
         snakeHead = gltf.scene;
-        snakeHead.scale.set(1, 1, 1);  // Smaller!
-        snakeHead.position.set(0, 2, 0);
+        snakeHead.scale.set(4.5, 4.5, 4.5); // BIG now
+        snakeHead.position.set(0, 3.5, 0);
         snakeHead.castShadow = true;
         scene.add(snakeHead);
         gameStarted = true;
-      });
+      }, undefined, err => console.error("Snake load error:", err));
 
-      // Pre-create rat pool
-      for (let i = 0; i < 15; i++) {
+      // Rat pool
+      for (let i = 0; i < 12; i++) {
         const ratLoader = new GLTFLoader();
-        ratLoader.load('assets/Rats.glb', (gltf) => {
+        ratLoader.load('assets/Rats.glb', gltf => {
           const rat = gltf.scene;
-          rat.scale.set(1.2, 1.2, 1.2);
+          rat.scale.set(2.8, 2.8, 2.8); // larger rats
           rat.visible = false;
           scene.add(rat);
           ratPool.push(rat);
         });
       }
 
-      // Initial tail
-      createBodySegment(0, -4);
-
       clock = new THREE.Clock();
       animate();
-    }
-
-    function createBodySegment(x, zOffset) {
-      if (bodySegments.length > 50) {  // Cap length for perf
-        const oldTail = bodySegments.shift();
-        scene.remove(oldTail);
-      }
-      const segmentGeo = new THREE.CylinderGeometry(0.8, 0.8, 2.5, 8);
-      const segmentMat = new THREE.MeshLambertMaterial({ color: 0x228B22 });
-      const segment = new THREE.Mesh(segmentGeo, segmentMat);
-      segment.position.set(x, 2, zOffset);
-      segment.castShadow = true;
-      scene.add(segment);
-      bodySegments.push({ mesh: segment, phase: bodySegments.length * 0.5 });
     }
 
     function getPooledRat() {
@@ -144,9 +141,9 @@
       if (rat) {
         rat.visible = true;
         rat.position.set(
-          THREE.MathUtils.randFloatSpread(roadHalfWidth * 1.8),
-          1.8,
-          -120 - Math.random() * 60
+          THREE.MathUtils.randFloatSpread(roadHalfWidth * 1.9),
+          2.2,
+          -180 - Math.random() * 80
         );
         rat.rotation.y = Math.random() * Math.PI * 2;
         rats.push(rat);
@@ -160,89 +157,64 @@
 
       if (gameStarted && !gameOver && snakeHead) {
         // Ground scroll
-        groundMesh.position.z += 45 * delta;
-        if (groundMesh.position.z > 400) groundMesh.position.z -= 800;
+        groundMesh.position.z += 48 * delta;
+        if (groundMesh.position.z > 500) groundMesh.position.z -= 1000;
 
-        // Head movement
-        snakeCurrentX = THREE.MathUtils.lerp(snakeCurrentX, snakeTargetX, 0.22);
-        snakeCurrentX = THREE.MathUtils.clamp(snakeCurrentX, -roadHalfWidth + 1, roadHalfWidth - 1);
+        // Snake movement
+        snakeCurrentX = THREE.MathUtils.lerp(snakeCurrentX, snakeTargetX, 0.24);
+        snakeCurrentX = THREE.MathUtils.clamp(snakeCurrentX, -roadHalfWidth + 2, roadHalfWidth - 2);
         snakeHead.position.x = snakeCurrentX;
-        snakeHead.rotation.z = (snakeTargetX - snakeCurrentX) * 0.3;
 
-        // Realistic slither body (sine wave undulation)
-        const headPos = snakeHead.position.clone();
-        if (bodySegments.length > 0) {
-          for (let i = 0; i < bodySegments.length; i++) {
-            const seg = bodySegments[i];
-            const targetZ = headPos.z - (i + 1) * 3.2;
-            const wave = Math.sin(time * 4 + seg.phase) * 1.2;
-            const wave2 = Math.sin(time * 6 + seg.phase * 1.3) * 0.8;
-            seg.mesh.position.x = THREE.MathUtils.lerp(seg.mesh.position.x, snakeCurrentX + wave * 0.6, 0.25);
-            seg.mesh.position.y = 2 + wave2 * 0.4;
-            seg.mesh.position.z = THREE.MathUtils.lerp(seg.mesh.position.z, targetZ, 0.35);
-            seg.mesh.rotation.z = wave * 0.4;
-            seg.mesh.rotation.y = wave2 * 0.2;
-          }
-        }
+        // Camera follow – closer, lower, more cinematic
+        camera.position.x = THREE.MathUtils.lerp(camera.position.x, snakeCurrentX * 0.65, 0.14);
+        camera.position.y = 5.5 + Math.sin(time * 1.8) * 0.4;
+        camera.lookAt(snakeCurrentX, 4, snakeHead.position.z - 18);
 
-        // Camera smooth follow
-        camera.position.x = THREE.MathUtils.lerp(camera.position.x, snakeCurrentX * 0.7, 0.12);
-        camera.position.y = 6 + Math.sin(time * 2) * 0.3;
-        camera.lookAt(snakeCurrentX, 3, headPos.z - 12);
-
-        // Spawn rats (faster with length)
+        // Spawn rats more frequently as snake grows
         spawnTimer += delta;
-        if (spawnTimer > Math.max(0.8, 2 - snakeLength * 0.05)) {
+        if (spawnTimer > Math.max(0.7, 2.2 - snakeLength * 0.08)) {
           spawnRat();
           spawnTimer = 0;
         }
 
-        // Rat movement & eat check
+        // Rat movement & eating
         for (let i = rats.length - 1; i >= 0; i--) {
           const rat = rats[i];
-          rat.position.z += 45 * delta;
-          rat.rotation.y += delta * 3;  // Spin for fun
+          rat.position.z += 48 * delta;
+          rat.rotation.y += delta * 4;
 
-          if (rat.position.z > headPos.z + 5) {  // Past snake
+          if (rat.position.z > snakeHead.position.z + 10) {
             rat.visible = false;
             rats.splice(i, 1);
             continue;
           }
 
-          const dist = snakeHead.position.distanceTo(rat.position);
-          if (dist < 2.8) {
-            // Eat!
+          if (snakeHead.position.distanceTo(rat.position) < 4.2) {
             score += 100;
             snakeLength++;
             document.getElementById('score').textContent = score;
             document.getElementById('length').textContent = snakeLength;
-            createBodySegment(snakeCurrentX, headPos.z - snakeLength * 3);
             rat.visible = false;
             rats.splice(i, 1);
           }
         }
 
-        // Collision checks
-        bodySegments.forEach(seg => {
-          if (snakeHead.position.distanceTo(seg.mesh.position) < 2.2) endGame();
-        });
-        if (Math.abs(snakeCurrentX) > roadHalfWidth) endGame();
+        // Collision
+        if (Math.abs(snakeCurrentX) > roadHalfWidth + 1) {
+          gameOver = true;
+          document.getElementById('finalScore').textContent = score;
+          document.getElementById('ratsEaten').textContent = snakeLength - 1;
+          document.getElementById('gameOver').style.display = 'block';
+        }
       }
 
       renderer.render(scene, camera);
     }
 
-    function endGame() {
-      gameOver = true;
-      document.getElementById('finalScore').textContent = score;
-      document.getElementById('ratsEaten').textContent = snakeLength - 1;
-      document.getElementById('gameOver').style.display = 'block';
-    }
-
     // Controls
     window.addEventListener('keydown', e => {
-      if (e.code === 'ArrowLeft' || e.code === 'KeyA') snakeTargetX -= 2.5;
-      if (e.code === 'ArrowRight' || e.code === 'KeyD') snakeTargetX += 2.5;
+      if (e.code === 'ArrowLeft' || e.code === 'KeyA') snakeTargetX -= 3;
+      if (e.code === 'ArrowRight' || e.code === 'KeyD') snakeTargetX += 3;
     });
 
     window.addEventListener('resize', () => {
