@@ -43,7 +43,7 @@
     let scene, camera, renderer, roadMesh, controls, clock;
     let gameStarted = false, isNight = false, score = 0, level = 1, roadSpeed = 30;
     let prevCycle = 0, currentMusic = null;
-    const lanes = [-8, 0, 8]; // 3 lanes prep
+    const lanes = [-8, 0, 8];
 
     // Init
     function init() {
@@ -71,11 +71,21 @@
       dirLight.shadow.mapSize.height = 2048;
       scene.add(dirLight);
 
-      // Road: Procedural infinite
+      // Procedural Road (no external image - asphalt + stripes!)
       const roadGeometry = new THREE.PlaneGeometry(20, 400);
-      const roadTexture = new THREE.TextureLoader().load('https://opengameart.org/sites/default/files/asphalt_road_0.png');
+      const canvas = document.createElement('canvas');
+      canvas.width = 512; canvas.height = 512;
+      const ctx = canvas.getContext('2d');
+      // Asphalt base
+      ctx.fillStyle = '#333333'; ctx.fillRect(0, 0, 512, 512);
+      // White stripes
+      ctx.fillStyle = '#ffffff';
+      for (let i = 0; i < 512; i += 128) {
+        ctx.fillRect(200, i, 120, 60);
+      }
+      const roadTexture = new THREE.CanvasTexture(canvas);
       roadTexture.wrapS = roadTexture.wrapT = THREE.RepeatWrapping;
-      roadTexture.repeat.set(3, 80); // Stripes effect
+      roadTexture.repeat.set(3, 80);
       roadTexture.encoding = THREE.sRGBEncoding;
       const roadMaterial = new THREE.MeshLambertMaterial({ map: roadTexture });
       roadMesh = new THREE.Mesh(roadGeometry, roadMaterial);
@@ -118,7 +128,7 @@
         roadMesh.position.z += roadSpeed * delta;
         if (roadMesh.position.z > 200) roadMesh.position.z -= 400;
 
-        // Lane tilt proto (bike sim)
+        // Lane tilt proto
         let tiltTarget = 0;
         if (keys['ArrowLeft'] || keys['KeyA']) tiltTarget = -1;
         if (keys['ArrowRight'] || keys['KeyD']) tiltTarget = 1;
@@ -150,7 +160,6 @@
     function toggleDayNight() {
       isNight = !isNight;
       updateFog();
-      // Light tint
       const dirLight = scene.children.find(c => c.type === 'DirectionalLight');
       dirLight.color.setHSL(isNight ? 0.6 : 0.55, 1, 0.8);
     }
@@ -166,7 +175,7 @@
       currentMusic.loop = true;
       currentMusic.play();
       gameStarted = true;
-      controls.enabled = false; // Lock for game
+      controls.enabled = false;
     };
 
     // Resize
