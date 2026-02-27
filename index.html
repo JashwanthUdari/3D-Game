@@ -4,22 +4,29 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>3D Car Dodger</title>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Rajdhani:wght@400;600;700&display=swap" rel="stylesheet">
   <style>
-    body { margin:0; overflow:hidden; font-family:Arial; background:#000; }
+    *, *::before, *::after { box-sizing: border-box; }
+    body { margin:0; overflow:hidden; font-family:'Rajdhani', Arial, sans-serif; background:#000; }
+
+    /* ───── HUD ───── */
     #ui {
       position: absolute;
-      top: 10px;
-      left: 10px;
+      top: 14px; left: 14px;
       color: white;
       z-index: 100;
-      font-size: 22px;
-      font-weight: bold;
-      text-shadow: 2px 2px 6px #000;
+      font-size: 20px;
+      font-family: 'Bebas Neue', sans-serif;
+      letter-spacing: 1.5px;
+      text-shadow: 0 0 10px rgba(0,255,200,0.6), 2px 2px 6px #000;
+      display: none;
     }
+    #ui div { margin-bottom: 2px; }
+
+    /* ───── GAME OVER ───── */
     #gameOver {
       position: absolute;
-      top: 50%;
-      left: 50%;
+      top: 50%; left: 50%;
       transform: translate(-50%, -50%);
       background: rgba(0,0,0,0.92);
       color: white;
@@ -29,32 +36,287 @@
       display: none;
       z-index: 200;
       min-width: 320px;
+      border: 1px solid rgba(255,255,255,0.1);
     }
-    button {
-      padding: 18px 40px;
-      background: #00aa00;
+    #gameOver h2 { font-family:'Bebas Neue'; font-size:48px; color:#ff4444; margin:0 0 10px; letter-spacing:4px; }
+
+    /* ───── SHARED BUTTON STYLE ───── */
+    .btn {
+      padding: 14px 36px;
+      background: linear-gradient(135deg, #00cc66, #009944);
       color: white;
       border: none;
       border-radius: 10px;
       cursor: pointer;
-      font-size: 20px;
-      margin-top: 20px;
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 22px;
+      letter-spacing: 2px;
+      margin-top: 16px;
+      transition: transform 0.15s, box-shadow 0.15s;
+      box-shadow: 0 4px 20px rgba(0,200,100,0.4);
     }
+    .btn:hover { transform: scale(1.05); box-shadow: 0 6px 28px rgba(0,200,100,0.6); }
+    .btn:active { transform: scale(0.97); }
+
+    /* ───── START SCREEN OVERLAY ───── */
+    #startScreen {
+      position: absolute;
+      inset: 0;
+      z-index: 300;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(180deg, #0a0a1a 0%, #0d1a2e 50%, #0a0a1a 100%);
+      overflow: hidden;
+    }
+
+    /* animated road lines bg */
+    #startScreen::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: repeating-linear-gradient(
+        180deg,
+        transparent 0px,
+        transparent 60px,
+        rgba(255,255,255,0.04) 60px,
+        rgba(255,255,255,0.04) 62px
+      );
+      animation: roadScroll 0.6s linear infinite;
+    }
+    @keyframes roadScroll {
+      from { background-position: 0 0; }
+      to   { background-position: 0 62px; }
+    }
+
+    .start-title {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: clamp(52px, 10vw, 96px);
+      letter-spacing: 8px;
+      color: #fff;
+      text-shadow: 0 0 30px rgba(0,255,180,0.7), 0 0 80px rgba(0,200,255,0.3);
+      margin-bottom: 4px;
+      position: relative;
+      z-index:1;
+    }
+    .start-subtitle {
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 18px;
+      letter-spacing: 6px;
+      color: rgba(0,255,180,0.7);
+      text-transform: uppercase;
+      margin-bottom: 40px;
+      position: relative;
+      z-index:1;
+    }
+
+    /* ───── STEP CARD ───── */
+    .step-card {
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 18px;
+      padding: 28px 34px;
+      width: min(480px, 90vw);
+      position: relative;
+      z-index: 1;
+      backdrop-filter: blur(12px);
+      transition: opacity 0.4s, transform 0.4s;
+    }
+    .step-card h3 {
+      font-family: 'Bebas Neue', sans-serif;
+      letter-spacing: 3px;
+      font-size: 22px;
+      color: rgba(0,255,180,0.9);
+      margin: 0 0 18px;
+      text-align: center;
+    }
+
+    /* Step visibility */
+    .step-card.hidden { display: none; }
+
+    /* ───── MUSIC OPTIONS ───── */
+    .music-options {
+      display: flex;
+      gap: 16px;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+    .music-btn {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+      padding: 18px 24px;
+      border-radius: 14px;
+      border: 2px solid rgba(255,255,255,0.15);
+      background: rgba(255,255,255,0.05);
+      color: white;
+      cursor: pointer;
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 16px;
+      font-weight: 600;
+      transition: all 0.2s;
+      min-width: 140px;
+    }
+    .music-btn:hover { border-color: rgba(0,255,180,0.6); background: rgba(0,255,180,0.1); transform: translateY(-2px); }
+    .music-btn.selected { border-color: #00ffb4; background: rgba(0,255,180,0.18); box-shadow: 0 0 20px rgba(0,255,180,0.3); }
+    .music-btn .music-icon { font-size: 32px; }
+    .music-btn .music-label { font-size: 13px; opacity: 0.7; }
+
+    /* ───── CONTROLS GUIDE ───── */
+    .controls-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+    }
+    .controls-section h4 {
+      font-family: 'Bebas Neue', sans-serif;
+      letter-spacing: 2px;
+      color: rgba(0,255,180,0.8);
+      font-size:16px;
+      margin: 0 0 10px;
+      border-bottom: 1px solid rgba(0,255,180,0.2);
+      padding-bottom: 6px;
+    }
+    .control-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 8px;
+      font-size: 14px;
+      color: rgba(255,255,255,0.85);
+      font-weight: 600;
+    }
+    .key {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(255,255,255,0.12);
+      border: 1px solid rgba(255,255,255,0.25);
+      border-radius: 6px;
+      padding: 3px 9px;
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 13px;
+      font-weight: 700;
+      min-width: 32px;
+      letter-spacing: 0.5px;
+      color: #fff;
+    }
+    .key.wide { padding: 3px 14px; }
+    .swipe-icon { font-size: 20px; }
+
+    /* progress dots */
+    .step-dots {
+      display: flex;
+      gap: 8px;
+      justify-content: center;
+      margin-bottom: 22px;
+      position: relative;
+      z-index:1;
+    }
+    .dot {
+      width: 10px; height: 10px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.2);
+      transition: background 0.3s, transform 0.3s;
+    }
+    .dot.active { background: #00ffb4; transform: scale(1.3); }
+
+    /* no-music opt */
+    .no-music-link {
+      text-align: center;
+      margin-top: 14px;
+      font-size: 13px;
+      color: rgba(255,255,255,0.35);
+      cursor: pointer;
+      text-decoration: underline;
+      font-family: 'Rajdhani', sans-serif;
+    }
+    .no-music-link:hover { color: rgba(255,255,255,0.6); }
   </style>
 </head>
 <body>
+
+  <!-- ══════════ START SCREEN ══════════ -->
+  <div id="startScreen">
+    <div class="start-title">CAR DODGER</div>
+    <div class="start-subtitle">Survive the Road</div>
+
+    <!-- Step dots -->
+    <div class="step-dots">
+      <div class="dot active" id="dot0"></div>
+      <div class="dot" id="dot1"></div>
+    </div>
+
+    <!-- STEP 1: Music -->
+    <div class="step-card" id="step1">
+      <h3>🎵 Choose Your Music</h3>
+      <div class="music-options">
+        <div class="music-btn" id="phonkBtn" onclick="selectMusic('phonk')">
+          <span class="music-icon">🔥</span>
+          <strong>Phonk</strong>
+          <span class="music-label">Phonk-Theme.mp3</span>
+        </div>
+        <div class="music-btn" id="gameBtn" onclick="selectMusic('game')">
+          <span class="music-icon">🎮</span>
+          <strong>Game Theme</strong>
+          <span class="music-label">Game-Theme.mp3</span>
+        </div>
+      </div>
+      <div style="text-align:center; margin-top: 20px;">
+        <button class="btn" id="nextBtn" onclick="goToStep2()" style="opacity:0.35; pointer-events:none;">
+          NEXT →
+        </button>
+      </div>
+      <div class="no-music-link" onclick="selectMusic('none'); goToStep2()">No music, just drive</div>
+    </div>
+
+    <!-- STEP 2: Controls + Start -->
+    <div class="step-card hidden" id="step2">
+      <h3>🕹️ Controls</h3>
+      <div class="controls-grid">
+        <div class="controls-section">
+          <h4>⌨️ PC / Keyboard</h4>
+          <div class="control-row"><span class="key">←</span><span class="key">A</span> Move Left</div>
+          <div class="control-row"><span class="key">→</span><span class="key">D</span> Move Right</div>
+          <div class="control-row"><span class="key wide">ESC</span> Pause</div>
+        </div>
+        <div class="controls-section">
+          <h4>📱 Mobile / Touch</h4>
+          <div class="control-row"><span class="swipe-icon">👈</span> Swipe Left</div>
+          <div class="control-row"><span class="swipe-icon">👉</span> Swipe Right</div>
+          <div class="control-row"><span class="swipe-icon">👆</span> Tap Left/Right side</div>
+        </div>
+      </div>
+      <div style="text-align:center; margin-top: 6px;">
+        <div style="font-size:13px; color:rgba(255,255,255,0.4); margin-bottom:4px; font-family:'Rajdhani',sans-serif;">
+          Score increases over time · Every 10k points = faster speed
+        </div>
+        <button class="btn" onclick="startGame()" style="font-size:26px; padding:16px 60px; margin-top:10px;">
+          🚗 START
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════ HUD ══════════ -->
   <div id="ui">
     <div>Score: <span id="score">0</span></div>
     <div>Level: <span id="level">1</span></div>
     <div>Speed: <span id="speed">30</span></div>
   </div>
 
+  <!-- ══════════ GAME OVER ══════════ -->
   <div id="gameOver">
     <h2>GAME OVER</h2>
     <p>Your score: <span id="finalScore">0</span></p>
     <p>Be Indian driver 😉</p>
-    <button onclick="location.reload()">RESTART</button>
+    <button class="btn" onclick="location.reload()">RESTART</button>
   </div>
+
+  <!-- hidden audio elements -->
+  <audio id="bgMusic" loop></audio>
 
   <script type="importmap">
     {
@@ -62,6 +324,45 @@
         "three": "https://unpkg.com/three@0.169.0/build/three.module.js",
         "three/addons/": "https://unpkg.com/three@0.169.0/examples/jsm/"
       }
+    }
+  </script>
+
+  <script>
+    // ──── Music selection ────
+    let selectedMusic = null;
+
+    function selectMusic(type) {
+      selectedMusic = type;
+      document.getElementById('phonkBtn').classList.remove('selected');
+      document.getElementById('gameBtn').classList.remove('selected');
+      if (type === 'phonk') document.getElementById('phonkBtn').classList.add('selected');
+      if (type === 'game')  document.getElementById('gameBtn').classList.add('selected');
+
+      const nextBtn = document.getElementById('nextBtn');
+      nextBtn.style.opacity = '1';
+      nextBtn.style.pointerEvents = 'auto';
+    }
+
+    function goToStep2() {
+      document.getElementById('step1').classList.add('hidden');
+      document.getElementById('step2').classList.remove('hidden');
+      document.getElementById('dot0').classList.remove('active');
+      document.getElementById('dot1').classList.add('active');
+    }
+
+    function startGame() {
+      // Start music
+      if (selectedMusic && selectedMusic !== 'none') {
+        const audio = document.getElementById('bgMusic');
+        audio.src = selectedMusic === 'phonk' ? 'assets/Phonk-Theme.mp3' : 'assets/Game-Theme.mp3';
+        audio.volume = 0.45;
+        audio.play().catch(() => {}); // browsers may block; fails silently
+      }
+      // Hide start screen, show HUD
+      document.getElementById('startScreen').style.display = 'none';
+      document.getElementById('ui').style.display = 'block';
+      // Signal game to begin
+      window._gameReady = true;
     }
   </script>
 
@@ -84,7 +385,7 @@
       updateFog();
 
       camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.05, 1000);
-      camera.position.set(0, 6, 14); // Adjusted for better car view
+      camera.position.set(0, 6, 14);
 
       renderer = new THREE.WebGLRenderer({ antialias: true });
       renderer.setSize(window.innerWidth, window.innerHeight);
@@ -92,7 +393,7 @@
       document.body.appendChild(renderer.domElement);
 
       // Lights
-      scene.add(new THREE.AmbientLight(0xffffff, 0.5)); // Brighter ambient to avoid blackouts
+      scene.add(new THREE.AmbientLight(0xffffff, 0.5));
       const dirLight = new THREE.DirectionalLight(0xffffff, 1.5);
       dirLight.position.set(15, 30, 20);
       dirLight.castShadow = true;
@@ -124,12 +425,12 @@
       const loader = new GLTFLoader();
       loader.load('assets/car.glb', (gltf) => {
         car = gltf.scene;
-        car.scale.set(0.8, 0.8, 0.8); // Comment: Adjust scale here if car is too big/small (e.g., 0.5 for smaller, 1.5 for larger)
-        car.position.set(0, 0, 0); // Adjusted Y to sit on road
-        car.rotation.y = Math.PI; // Face forward
+        car.scale.set(0.8, 0.8, 0.8);
+        car.position.set(0, 0, 0);
+        car.rotation.y = Math.PI;
         car.castShadow = true;
         scene.add(car);
-        gameStarted = true;
+        gameStarted = true; // model ready; actual movement waits for _gameReady
       }, undefined, err => console.error("Car load error:", err));
 
       clock = new THREE.Clock();
@@ -140,14 +441,14 @@
       requestAnimationFrame(animate);
       const delta = clock.getDelta();
 
-      if (gameStarted && !gameOver && car) {
+      // Only run game logic after player pressed START
+      if (gameStarted && window._gameReady && !gameOver && car) {
         roadMesh.position.z += roadSpeed * delta;
         if (roadMesh.position.z > 300) roadMesh.position.z -= 600;
 
         carCurrentX = THREE.MathUtils.lerp(carCurrentX, carTargetX, 0.2);
         carCurrentX = THREE.MathUtils.clamp(carCurrentX, -roadHalfWidth, roadHalfWidth);
         car.position.x = carCurrentX;
-        // No tilt/rotation.z for car – keeps it flat
 
         camera.position.x = THREE.MathUtils.lerp(camera.position.x, carCurrentX * 0.6, 0.15);
         camera.lookAt(carCurrentX, 3, car.position.z - 10);
@@ -180,10 +481,26 @@
       scene.fog = new THREE.Fog(isNight ? 0x191970 : 0x87CEEB, 50, 300);
     }
 
+    // ── Keyboard ──
     window.addEventListener('keydown', e => {
-      if (e.code === 'ArrowLeft' || e.code === 'KeyA') carTargetX -= 2.5;
+      if (!window._gameReady) return;
+      if (e.code === 'ArrowLeft'  || e.code === 'KeyA') carTargetX -= 2.5;
       if (e.code === 'ArrowRight' || e.code === 'KeyD') carTargetX += 2.5;
     });
+
+    // ── Touch / Swipe ──
+    let touchStartX = 0;
+    window.addEventListener('touchstart', e => { touchStartX = e.touches[0].clientX; }, { passive: true });
+    window.addEventListener('touchend', e => {
+      if (!window._gameReady) return;
+      const dx = e.changedTouches[0].clientX - touchStartX;
+      if (Math.abs(dx) < 20) {
+        // tap: left half = go left, right half = go right
+        e.changedTouches[0].clientX < window.innerWidth / 2 ? carTargetX -= 2.5 : carTargetX += 2.5;
+      } else {
+        dx < 0 ? carTargetX -= 2.5 : carTargetX += 2.5;
+      }
+    }, { passive: true });
 
     window.addEventListener('resize', () => {
       camera.aspect = window.innerWidth / window.innerHeight;
