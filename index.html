@@ -440,22 +440,28 @@
           scene.add(car);
 
           // 2) Load 3 traffic models in parallel
+          // rotation.y correction per file — adjust if a model still looks sideways:
+          // 0        = facing toward camera (back of car visible) ✅ same as player
+          // Math.PI  = facing away from camera (front of car visible)
+          // Math.PI/2  = rotated 90° right (side view)
+          // -Math.PI/2 = rotated 90° left  (side view)
           const trafficFiles = [
-            'assets/car-side.glb',
-            'assets/car-side1.glb',
-            'assets/car-side2.glb'
+            { file: 'assets/car-side.glb',  rotY: Math.PI      },
+            { file: 'assets/car-side1.glb', rotY: Math.PI      },
+            { file: 'assets/car-side2.glb', rotY: Math.PI / 2  }, // ← fix: was side-on
           ];
-          trafficFiles.forEach((file) => {
+          trafficFiles.forEach(({ file, rotY }) => {
             loader.load(
               file,
               (tGltf) => {
+                tGltf.scene.rotation.y = rotY;
                 trafficTemplates.push(tGltf.scene);
                 trafficLoaded++;
               },
               undefined,
               (err) => {
                 console.warn('Traffic GLB skipped:', file, err);
-                trafficLoaded++; // count even on failure so game still starts
+                trafficLoaded++;
               }
             );
           });
@@ -494,7 +500,7 @@
       const mesh = template.clone(true);
       mesh.scale.set(CAR_SCALE, CAR_SCALE, CAR_SCALE);
       mesh.position.set(laneX, 0, SPAWN_Z);
-      mesh.rotation.y = Math.PI; // face same forward direction as player
+      // rotation inherited from template (set per-model during load)
       mesh.castShadow = true;
       scene.add(mesh);
       trafficCars.push(mesh);
