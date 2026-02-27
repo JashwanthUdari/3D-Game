@@ -3,13 +3,12 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>3D Car Dodger</title>
+  <title>3D Car Dodger – Preview</title>
   <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Rajdhani:wght@400;600;700&display=swap" rel="stylesheet">
   <style>
     *, *::before, *::after { box-sizing: border-box; }
     body { margin:0; overflow:hidden; font-family:'Rajdhani', Arial, sans-serif; background:#000; }
 
-    /* ───── HUD ───── */
     #ui {
       position: absolute;
       top: 14px; left: 14px;
@@ -23,7 +22,6 @@
     }
     #ui div { margin-bottom: 2px; }
 
-    /* ───── GAME OVER ───── */
     #gameOver {
       position: absolute;
       top: 50%; left: 50%;
@@ -40,7 +38,6 @@
     }
     #gameOver h2 { font-family:'Bebas Neue'; font-size:48px; color:#ff4444; margin:0 0 10px; letter-spacing:4px; }
 
-    /* ───── SHARED BUTTON STYLE ───── */
     .btn {
       padding: 14px 36px;
       background: linear-gradient(135deg, #00cc66, #009944);
@@ -58,7 +55,7 @@
     .btn:hover { transform: scale(1.05); box-shadow: 0 6px 28px rgba(0,200,100,0.6); }
     .btn:active { transform: scale(0.97); }
 
-    /* ───── START SCREEN OVERLAY ───── */
+    /* ── START SCREEN ── */
     #startScreen {
       position: absolute;
       inset: 0;
@@ -70,18 +67,14 @@
       background: linear-gradient(180deg, #0a0a1a 0%, #0d1a2e 50%, #0a0a1a 100%);
       overflow: hidden;
     }
-
-    /* animated road lines bg */
     #startScreen::before {
       content: '';
       position: absolute;
       inset: 0;
       background: repeating-linear-gradient(
         180deg,
-        transparent 0px,
-        transparent 60px,
-        rgba(255,255,255,0.04) 60px,
-        rgba(255,255,255,0.04) 62px
+        transparent 0px, transparent 60px,
+        rgba(255,255,255,0.04) 60px, rgba(255,255,255,0.04) 62px
       );
       animation: roadScroll 0.6s linear infinite;
     }
@@ -97,8 +90,7 @@
       color: #fff;
       text-shadow: 0 0 30px rgba(0,255,180,0.7), 0 0 80px rgba(0,200,255,0.3);
       margin-bottom: 4px;
-      position: relative;
-      z-index:1;
+      position: relative; z-index:1;
     }
     .start-subtitle {
       font-family: 'Rajdhani', sans-serif;
@@ -107,21 +99,17 @@
       color: rgba(0,255,180,0.7);
       text-transform: uppercase;
       margin-bottom: 40px;
-      position: relative;
-      z-index:1;
+      position: relative; z-index:1;
     }
 
-    /* ───── STEP CARD ───── */
     .step-card {
       background: rgba(255,255,255,0.05);
       border: 1px solid rgba(255,255,255,0.12);
       border-radius: 18px;
       padding: 28px 34px;
       width: min(480px, 90vw);
-      position: relative;
-      z-index: 1;
+      position: relative; z-index: 1;
       backdrop-filter: blur(12px);
-      transition: opacity 0.4s, transform 0.4s;
     }
     .step-card h3 {
       font-family: 'Bebas Neue', sans-serif;
@@ -131,119 +119,98 @@
       margin: 0 0 18px;
       text-align: center;
     }
-
-    /* Step visibility */
     .step-card.hidden { display: none; }
 
-    /* ───── MUSIC OPTIONS ───── */
-    .music-options {
-      display: flex;
-      gap: 16px;
-      justify-content: center;
-      flex-wrap: wrap;
-    }
+    .music-options { display: flex; gap: 16px; justify-content: center; flex-wrap: wrap; }
     .music-btn {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 8px;
-      padding: 18px 24px;
-      border-radius: 14px;
+      display: flex; flex-direction: column; align-items: center; gap: 8px;
+      padding: 18px 24px; border-radius: 14px;
       border: 2px solid rgba(255,255,255,0.15);
       background: rgba(255,255,255,0.05);
-      color: white;
-      cursor: pointer;
-      font-family: 'Rajdhani', sans-serif;
-      font-size: 16px;
-      font-weight: 600;
-      transition: all 0.2s;
-      min-width: 140px;
+      color: white; cursor: pointer;
+      font-family: 'Rajdhani', sans-serif; font-size: 16px; font-weight: 600;
+      transition: all 0.2s; min-width: 140px;
     }
     .music-btn:hover { border-color: rgba(0,255,180,0.6); background: rgba(0,255,180,0.1); transform: translateY(-2px); }
     .music-btn.selected { border-color: #00ffb4; background: rgba(0,255,180,0.18); box-shadow: 0 0 20px rgba(0,255,180,0.3); }
     .music-btn .music-icon { font-size: 32px; }
     .music-btn .music-label { font-size: 13px; opacity: 0.7; }
 
-    /* ───── CONTROLS GUIDE ───── */
-    .controls-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 14px;
-    }
+    .controls-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
     .controls-section h4 {
-      font-family: 'Bebas Neue', sans-serif;
-      letter-spacing: 2px;
-      color: rgba(0,255,180,0.8);
-      font-size:16px;
+      font-family: 'Bebas Neue', sans-serif; letter-spacing: 2px;
+      color: rgba(0,255,180,0.8); font-size:16px;
       margin: 0 0 10px;
-      border-bottom: 1px solid rgba(0,255,180,0.2);
-      padding-bottom: 6px;
+      border-bottom: 1px solid rgba(0,255,180,0.2); padding-bottom: 6px;
     }
     .control-row {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      margin-bottom: 8px;
-      font-size: 14px;
-      color: rgba(255,255,255,0.85);
-      font-weight: 600;
+      display: flex; align-items: center; gap: 10px;
+      margin-bottom: 8px; font-size: 14px;
+      color: rgba(255,255,255,0.85); font-weight: 600;
     }
     .key {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      background: rgba(255,255,255,0.12);
-      border: 1px solid rgba(255,255,255,0.25);
-      border-radius: 6px;
-      padding: 3px 9px;
-      font-family: 'Rajdhani', sans-serif;
-      font-size: 13px;
-      font-weight: 700;
-      min-width: 32px;
-      letter-spacing: 0.5px;
-      color: #fff;
+      display: inline-flex; align-items: center; justify-content: center;
+      background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.25);
+      border-radius: 6px; padding: 3px 9px;
+      font-family: 'Rajdhani', sans-serif; font-size: 13px; font-weight: 700;
+      min-width: 32px; letter-spacing: 0.5px; color: #fff;
     }
     .key.wide { padding: 3px 14px; }
     .swipe-icon { font-size: 20px; }
 
-    /* progress dots */
-    .step-dots {
-      display: flex;
-      gap: 8px;
-      justify-content: center;
-      margin-bottom: 22px;
-      position: relative;
-      z-index:1;
-    }
-    .dot {
-      width: 10px; height: 10px;
-      border-radius: 50%;
-      background: rgba(255,255,255,0.2);
-      transition: background 0.3s, transform 0.3s;
-    }
+    .step-dots { display: flex; gap: 8px; justify-content: center; margin-bottom: 22px; position: relative; z-index:1; }
+    .dot { width: 10px; height: 10px; border-radius: 50%; background: rgba(255,255,255,0.2); transition: background 0.3s, transform 0.3s; }
     .dot.active { background: #00ffb4; transform: scale(1.3); }
 
-    /* no-music opt */
     .no-music-link {
-      text-align: center;
-      margin-top: 14px;
-      font-size: 13px;
-      color: rgba(255,255,255,0.35);
-      cursor: pointer;
-      text-decoration: underline;
+      text-align: center; margin-top: 14px; font-size: 13px;
+      color: rgba(255,255,255,0.35); cursor: pointer; text-decoration: underline;
       font-family: 'Rajdhani', sans-serif;
     }
     .no-music-link:hover { color: rgba(255,255,255,0.6); }
+
+    /* ── PAUSE OVERLAY ── */
+    #pauseScreen {
+      position: absolute; inset: 0; z-index: 150;
+      display: none; align-items: center; justify-content: center; flex-direction: column;
+      background: rgba(0,0,0,0.6); backdrop-filter: blur(6px);
+    }
+    #pauseScreen.active { display: flex; }
+    #pauseScreen h2 {
+      font-family: 'Bebas Neue', sans-serif; font-size: 64px; letter-spacing: 8px;
+      color: #fff; text-shadow: 0 0 30px rgba(0,255,180,0.6); margin: 0 0 8px;
+    }
+    #pauseScreen p {
+      font-family: 'Rajdhani', sans-serif; font-size: 18px; letter-spacing: 3px;
+      color: rgba(255,255,255,0.45); margin: 0 0 30px; text-transform: uppercase;
+    }
+
+    /* ── SANDBOX NOTE ── */
+    #sandboxNote {
+      position: absolute;
+      bottom: 10px; left: 50%;
+      transform: translateX(-50%);
+      background: rgba(255,200,0,0.15);
+      border: 1px solid rgba(255,200,0,0.4);
+      color: rgba(255,220,80,0.9);
+      padding: 6px 18px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-family: 'Rajdhani', sans-serif;
+      z-index: 400;
+      white-space: nowrap;
+    }
   </style>
 </head>
 <body>
+
+  <div id="sandboxNote">⚠️ Preview mode — box car replaces GLB. Your real game uses car.glb as normal.</div>
 
   <!-- ══════════ START SCREEN ══════════ -->
   <div id="startScreen">
     <div class="start-title">CAR DODGER</div>
     <div class="start-subtitle">Survive the Road</div>
 
-    <!-- Step dots -->
     <div class="step-dots">
       <div class="dot active" id="dot0"></div>
       <div class="dot" id="dot1"></div>
@@ -280,7 +247,7 @@
           <h4>⌨️ PC / Keyboard</h4>
           <div class="control-row"><span class="key">←</span><span class="key">A</span> Move Left</div>
           <div class="control-row"><span class="key">→</span><span class="key">D</span> Move Right</div>
-          <div class="control-row"><span class="key wide">ESC</span> Pause</div>
+          <div class="control-row"><span class="key wide">SPACE</span> Pause</div>
         </div>
         <div class="controls-section">
           <h4>📱 Mobile / Touch</h4>
@@ -294,20 +261,26 @@
           Score increases over time · Every 10k points = faster speed
         </div>
         <button class="btn" onclick="startGame()" style="font-size:26px; padding:16px 60px; margin-top:10px;">
-          🚗 START
+           START
         </button>
       </div>
     </div>
   </div>
 
-  <!-- ══════════ HUD ══════════ -->
+  <div id="pauseScreen">
+    <h2>PAUSED</h2>
+    <p>Press Space to Resume</p>
+    <button class="btn" onclick="togglePause()">▶ RESUME</button>
+  </div>
+
+  <!-- HUD -->
   <div id="ui">
     <div>Score: <span id="score">0</span></div>
     <div>Level: <span id="level">1</span></div>
     <div>Speed: <span id="speed">30</span></div>
   </div>
 
-  <!-- ══════════ GAME OVER ══════════ -->
+  <!-- Game Over -->
   <div id="gameOver">
     <h2>GAME OVER</h2>
     <p>Your score: <span id="finalScore">0</span></p>
@@ -315,20 +288,9 @@
     <button class="btn" onclick="location.reload()">RESTART</button>
   </div>
 
-  <!-- hidden audio elements -->
   <audio id="bgMusic" loop></audio>
 
-  <script type="importmap">
-    {
-      "imports": {
-        "three": "https://unpkg.com/three@0.169.0/build/three.module.js",
-        "three/addons/": "https://unpkg.com/three@0.169.0/examples/jsm/"
-      }
-    }
-  </script>
-
   <script>
-    // ──── Music selection ────
     let selectedMusic = null;
 
     function selectMusic(type) {
@@ -337,7 +299,6 @@
       document.getElementById('gameBtn').classList.remove('selected');
       if (type === 'phonk') document.getElementById('phonkBtn').classList.add('selected');
       if (type === 'game')  document.getElementById('gameBtn').classList.add('selected');
-
       const nextBtn = document.getElementById('nextBtn');
       nextBtn.style.opacity = '1';
       nextBtn.style.pointerEvents = 'auto';
@@ -351,24 +312,39 @@
     }
 
     function startGame() {
-      // Start music
       if (selectedMusic && selectedMusic !== 'none') {
         const audio = document.getElementById('bgMusic');
         audio.src = selectedMusic === 'phonk' ? 'assets/Phonk-Theme.mp3' : 'assets/Game-Theme.mp3';
         audio.volume = 0.45;
-        audio.play().catch(() => {}); // browsers may block; fails silently
+        audio.play().catch(() => {});
       }
-      // Hide start screen, show HUD
       document.getElementById('startScreen').style.display = 'none';
+      document.getElementById('sandboxNote').style.display = 'none';
       document.getElementById('ui').style.display = 'block';
-      // Signal game to begin
       window._gameReady = true;
+      window._isPaused = false;
+    }
+
+    function togglePause() {
+      if (!window._gameReady) return;
+      window._isPaused = !window._isPaused;
+      document.getElementById('pauseScreen').classList.toggle('active', window._isPaused);
+      const audio = document.getElementById('bgMusic');
+      window._isPaused ? audio.pause() : audio.play().catch(() => {});
+    }
+  </script>
+
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://unpkg.com/three@0.169.0/build/three.module.js",
+        "three/addons/": "https://unpkg.com/three@0.169.0/examples/jsm/"
+      }
     }
   </script>
 
   <script type="module">
     import * as THREE from 'three';
-    import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
     let scene, camera, renderer, roadMesh, car, clock;
     let score = 0, level = 1, roadSpeed = 30;
@@ -376,9 +352,6 @@
     const roadHalfWidth = 10;
     let isNight = false;
     let gameOver = false;
-    let gameStarted = false;
-    let cars = [];
-    let spawnTimer = 0;
 
     function init() {
       scene = new THREE.Scene();
@@ -392,13 +365,10 @@
       renderer.shadowMap.enabled = true;
       document.body.appendChild(renderer.domElement);
 
-      // Lights
       scene.add(new THREE.AmbientLight(0xffffff, 0.5));
       const dirLight = new THREE.DirectionalLight(0xffffff, 1.5);
       dirLight.position.set(15, 30, 20);
       dirLight.castShadow = true;
-      dirLight.shadow.mapSize.width = 2048;
-      dirLight.shadow.mapSize.height = 2048;
       scene.add(dirLight);
 
       // Road
@@ -407,31 +377,46 @@
       const ctx = canvas.getContext('2d');
       ctx.fillStyle = '#2a2a2a'; ctx.fillRect(0,0,1024,1024);
       ctx.fillStyle = '#ffffff';
-      for (let y = 0; y < 1024; y += 200) {
-        ctx.fillRect(480, y, 64, 120);
-      }
+      for (let y = 0; y < 1024; y += 200) ctx.fillRect(480, y, 64, 120);
       const roadTexture = new THREE.CanvasTexture(canvas);
       roadTexture.wrapS = roadTexture.wrapT = THREE.RepeatWrapping;
       roadTexture.repeat.set(4, 160);
       roadTexture.generateMipmaps = false;
       roadTexture.minFilter = THREE.LinearFilter;
-
-      const roadGeometry = new THREE.PlaneGeometry(20, 600);
-      roadMesh = new THREE.Mesh(roadGeometry, new THREE.MeshLambertMaterial({ map: roadTexture }));
+      roadMesh = new THREE.Mesh(
+        new THREE.PlaneGeometry(20, 600),
+        new THREE.MeshLambertMaterial({ map: roadTexture })
+      );
       roadMesh.rotation.x = -Math.PI / 2;
       scene.add(roadMesh);
 
-      // Player Car
-      const loader = new GLTFLoader();
-      loader.load('assets/car.glb', (gltf) => {
-        car = gltf.scene;
-        car.scale.set(0.8, 0.8, 0.8);
-        car.position.set(0, 0, 0);
-        car.rotation.y = Math.PI;
-        car.castShadow = true;
-        scene.add(car);
-        gameStarted = true; // model ready; actual movement waits for _gameReady
-      }, undefined, err => console.error("Car load error:", err));
+      // ── PREVIEW: Simple box car instead of GLB ──
+      const bodyGeo  = new THREE.BoxGeometry(3.6, 1.4, 7.2);
+      const bodyMat  = new THREE.MeshLambertMaterial({ color: 0xff2200 });
+      const cabGeo   = new THREE.BoxGeometry(2.8, 1.1, 3.6);
+      const cabMat   = new THREE.MeshLambertMaterial({ color: 0xcc1100 });
+
+      car = new THREE.Group();
+      const body = new THREE.Mesh(bodyGeo, bodyMat);
+      body.position.y = 0.7;
+      const cab = new THREE.Mesh(cabGeo, cabMat);
+      cab.position.set(0, 1.8, -0.6);
+
+      // Wheels
+      const wheelGeo = new THREE.CylinderGeometry(0.8, 0.8, 0.6, 12);
+      const wheelMat = new THREE.MeshLambertMaterial({ color: 0x111111 });
+      [[-1,0, 2.2],[1,0, 2.2],[-1,0,-2.2],[1,0,-2.2]].forEach(([x,y,z]) => {
+        const w = new THREE.Mesh(wheelGeo, wheelMat);
+        w.rotation.z = Math.PI / 2;
+        w.position.set(x * 2.0, 0.2, z);
+        car.add(w);
+      });
+
+      car.add(body);
+      car.add(cab);
+      car.position.set(0, 0, 0);
+      car.rotation.y = Math.PI;
+      scene.add(car);
 
       clock = new THREE.Clock();
       animate();
@@ -441,8 +426,7 @@
       requestAnimationFrame(animate);
       const delta = clock.getDelta();
 
-      // Only run game logic after player pressed START
-      if (gameStarted && window._gameReady && !gameOver && car) {
+      if (window._gameReady && !window._isPaused && !gameOver && car) {
         roadMesh.position.z += roadSpeed * delta;
         if (roadMesh.position.z > 300) roadMesh.position.z -= 600;
 
@@ -463,14 +447,13 @@
           document.getElementById('level').textContent = level;
         }
 
-        // Day/night
         const elapsed = clock.getElapsedTime();
         const cycle = Math.floor(elapsed / 20) % 2;
         if (cycle !== (isNight ? 1 : 0)) {
           isNight = !isNight;
           updateFog();
-          const dirLight = scene.children.find(c => c.type === 'DirectionalLight');
-          if (dirLight) dirLight.color.setHSL(isNight ? 0.58 : 0.55, 1, isNight ? 0.4 : 0.8);
+          const dl = scene.children.find(c => c.type === 'DirectionalLight');
+          if (dl) dl.color.setHSL(isNight ? 0.58 : 0.55, 1, isNight ? 0.4 : 0.8);
         }
       }
 
@@ -481,21 +464,20 @@
       scene.fog = new THREE.Fog(isNight ? 0x191970 : 0x87CEEB, 50, 300);
     }
 
-    // ── Keyboard ──
     window.addEventListener('keydown', e => {
       if (!window._gameReady) return;
+      if (e.code === 'Space') { e.preventDefault(); togglePause(); return; }
+      if (window._isPaused) return;
       if (e.code === 'ArrowLeft'  || e.code === 'KeyA') carTargetX -= 2.5;
       if (e.code === 'ArrowRight' || e.code === 'KeyD') carTargetX += 2.5;
     });
 
-    // ── Touch / Swipe ──
     let touchStartX = 0;
     window.addEventListener('touchstart', e => { touchStartX = e.touches[0].clientX; }, { passive: true });
     window.addEventListener('touchend', e => {
       if (!window._gameReady) return;
       const dx = e.changedTouches[0].clientX - touchStartX;
       if (Math.abs(dx) < 20) {
-        // tap: left half = go left, right half = go right
         e.changedTouches[0].clientX < window.innerWidth / 2 ? carTargetX -= 2.5 : carTargetX += 2.5;
       } else {
         dx < 0 ? carTargetX -= 2.5 : carTargetX += 2.5;
