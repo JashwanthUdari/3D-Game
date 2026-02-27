@@ -364,6 +364,19 @@
     let isNight = false;
     let gameOver = false;
 
+    // ── Screen shake ──
+    let shakeDuration  = 0;
+    let shakeIntensity = 0;
+    const SHAKE_NEAR_MISS = { duration: 0.25, intensity: 0.18 };
+    const SHAKE_COLLISION = { duration: 0.55, intensity: 0.55 };
+
+    function triggerShake(duration, intensity) {
+      if (intensity > shakeIntensity) {
+        shakeDuration  = duration;
+        shakeIntensity = intensity;
+      }
+    }
+
     // ── Traffic system ──
     // Road is 20 units wide (-10 to +10). White lines divide it into 4 lanes.
     // Lane centres sit between the lines: -7.5, -2.5, +2.5, +7.5
@@ -566,7 +579,11 @@
             const dx = Math.abs(tc.position.x - car.position.x);
             const dz = Math.abs(tc.position.z - car.position.z);
             if (dx < 2.0 && dz < 3.0) {
+              triggerShake(SHAKE_COLLISION.duration, SHAKE_COLLISION.intensity);
               triggerGameOver();
+            } else if (dx < 3.5 && dz < 4.5) {
+              // Near-miss zone — just outside collision box
+              triggerShake(SHAKE_NEAR_MISS.duration, SHAKE_NEAR_MISS.intensity);
             }
           }
         }
@@ -580,6 +597,17 @@
           const dl = scene.children.find(c => c.type === 'DirectionalLight');
           if (dl) dl.color.setHSL(isNight ? 0.58 : 0.55, 1, isNight ? 0.4 : 0.8);
         }
+      }
+
+      // ── Apply screen shake ──
+      if (shakeDuration > 0) {
+        const power   = shakeDuration > 0 ? shakeIntensity * (shakeDuration / 0.55) : 0;
+        const offsetX = (Math.random() * 2 - 1) * power;
+        const offsetY = (Math.random() * 2 - 1) * power * 0.5;
+        camera.position.x += offsetX;
+        camera.position.y += offsetY;
+        shakeDuration -= delta;
+        if (shakeDuration <= 0) shakeIntensity = 0;
       }
 
       renderer.render(scene, camera);
