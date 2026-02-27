@@ -192,6 +192,7 @@
       align-items: center; justify-content: center;
       background: #0a0a1a;
     }
+    #loadingScreen.active { display: flex; }
     #loadingScreen p {
       font-family: 'Bebas Neue', sans-serif; font-size: 28px; letter-spacing: 4px;
       color: rgba(0,255,180,0.8); margin-bottom: 20px;
@@ -204,9 +205,8 @@
       height: 100%; width: 0%;
       background: linear-gradient(90deg, #00ffb4, #00ccff);
       border-radius: 10px;
-      animation: loadFill 2s ease-out forwards;
+      transition: width 0.3s ease;
     }
-    @keyframes loadFill { from { width: 0%; } to { width: 100%; } }
   </style>
 </head>
 <body>
@@ -333,9 +333,9 @@
     }
 
     function startGame() {
-      // Music will play after car loads — stored in selectedMusic
       document.getElementById('startScreen').style.display = 'none';
-      document.getElementById('loadingScreen').style.display = 'flex';
+      document.getElementById('loadingScreen').classList.add('active');
+      document.getElementById('loadBar').style.width = '10%'; // show initial progress
       window._startRequested = true;
     }
 
@@ -444,12 +444,24 @@
       if (!window._startRequested) return;
       clearInterval(waitInterval);
 
+      // Safety timeout — if loading takes >10s, force-start anyway
+      const loadTimeout = setTimeout(() => {
+        if (!window._gameReady) {
+          console.warn('Load timeout — forcing game start');
+          document.getElementById('loadingScreen').classList.remove('active');
+          document.getElementById('ui').style.display = 'block';
+          window._gameReady = true;
+          window._isPaused  = false;
+        }
+      }, 10000);
+
       const loader = new GLTFLoader();
 
       // 1) Load player car first
       loader.load(
         'assets/car.glb',
         (gltf) => {
+          clearTimeout(loadTimeout);
           car = gltf.scene;
           car.scale.set(CAR_SCALE, CAR_SCALE, CAR_SCALE);
           car.position.set(0, 0, 0);
@@ -484,7 +496,7 @@
             );
           });
 
-          document.getElementById('loadingScreen').style.display = 'none';
+          document.getElementById('loadingScreen').classList.remove('active');
           document.getElementById('ui').style.display = 'block';
           window._gameReady = true;
           window._isPaused  = false;
@@ -500,16 +512,15 @@
           }
         },
         (xhr) => {
+          // Update progress bar smoothly
           if (xhr.total) {
-            const pct = (xhr.loaded / xhr.total * 100).toFixed(0);
-            const bar = document.getElementById('loadBar');
-            bar.style.animation = 'none';
-            bar.style.width = pct + '%';
+            const pct = Math.min(90, (xhr.loaded / xhr.total * 90)).toFixed(0);
+            document.getElementById('loadBar').style.width = pct + '%';
           }
         },
         (err) => {
           console.error('car.glb failed:', err);
-          document.getElementById('loadingScreen').style.display = 'none';
+          document.getElementById('loadingScreen').classList.remove('active');
           document.getElementById('ui').style.display = 'block';
           window._gameReady = true;
           window._isPaused  = false;
