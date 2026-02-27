@@ -364,7 +364,21 @@
     let isNight = false;
     let gameOver = false;
 
-    // ── Build scene immediately (no waiting) ──
+    // ── Traffic system ──
+    // Road is 20 units wide (-10 to +10). White lines divide it into 4 lanes.
+    // Lane centres sit between the lines: -7.5, -2.5, +2.5, +7.5
+    const LANES      = [-7.5, -2.5, 2.5, 7.5];
+    const SPAWN_Z    = -80;   // far ahead (negative = forward in this scene)
+    const DESPAWN_Z  = 20;    // behind player — recycle here
+    const MAX_TRAFFIC = 6;
+    const CAR_SCALE   = 1.6;  // same as player car
+
+    let trafficCars   = [];   // active meshes in scene
+    let trafficTemplates = []; // cloneable loaded GLBs
+    let trafficLoaded = 0;
+    let spawnTimer    = 0;
+
+    // ── Scene setup ──
     scene = new THREE.Scene();
     updateFog();
 
@@ -405,57 +419,99 @@
     scene.add(roadMesh);
 
     clock = new THREE.Clock();
-    animate(); // start render loop right away
+    animate();
 
-    // ── Wait for START button, then load car.glb ──
+    // ── Wait for START, then load all models ──
     const waitInterval = setInterval(() => {
       if (!window._startRequested) return;
       clearInterval(waitInterval);
 
       const loader = new GLTFLoader();
+
+      // 1) Load player car first
       loader.load(
         'assets/car.glb',
         (gltf) => {
-          // ✅ SUCCESS
           car = gltf.scene;
-          car.scale.set(1.6, 1.6, 1.6);
+          car.scale.set(CAR_SCALE, CAR_SCALE, CAR_SCALE);
           car.position.set(0, 0, 0);
           car.rotation.y = Math.PI;
           car.castShadow = true;
           scene.add(car);
 
+          // 2) Load 3 traffic models in parallel
+          const trafficFiles = [
+            'assets/car-side.glb',
+            'assets/car-side1.glb',
+            'assets/car-side2.glb'
+          ];
+          trafficFiles.forEach((file) => {
+            loader.load(
+              file,
+              (tGltf) => {
+                trafficTemplates.push(tGltf.scene);
+                trafficLoaded++;
+              },
+              undefined,
+              (err) => {
+                console.warn('Traffic GLB skipped:', file, err);
+                trafficLoaded++; // count even on failure so game still starts
+              }
+            );
+          });
+
           document.getElementById('loadingScreen').style.display = 'none';
           document.getElementById('ui').style.display = 'block';
           window._gameReady = true;
-          window._isPaused = false;
+          window._isPaused  = false;
         },
         (xhr) => {
-          // Progress feedback on loading bar
           if (xhr.total) {
             const pct = (xhr.loaded / xhr.total * 100).toFixed(0);
-            document.getElementById('loadBar').style.width = pct + '%';
-            document.getElementById('loadBar').style.animation = 'none';
+            const bar = document.getElementById('loadBar');
+            bar.style.animation = 'none';
+            bar.style.width = pct + '%';
           }
         },
         (err) => {
-          // ❌ GLB failed — log and still launch game
-          console.error('car.glb load error:', err);
+          console.error('car.glb failed:', err);
           document.getElementById('loadingScreen').style.display = 'none';
           document.getElementById('ui').style.display = 'block';
           window._gameReady = true;
-          window._isPaused = false;
+          window._isPaused  = false;
         }
       );
     }, 100);
 
+    // ── Spawn one traffic car in a random lane ──
+    function spawnTrafficCar() {
+      if (trafficTemplates.length === 0) return;
+
+      // Pick random template and random lane
+      const template = trafficTemplates[Math.floor(Math.random() * trafficTemplates.length)];
+      const laneX    = LANES[Math.floor(Math.random() * LANES.length)];
+
+      const mesh = template.clone(true);
+      mesh.scale.set(CAR_SCALE, CAR_SCALE, CAR_SCALE);
+      mesh.position.set(laneX, 0, SPAWN_Z);
+      mesh.rotation.y = Math.PI; // face same forward direction as player
+      mesh.castShadow = true;
+      scene.add(mesh);
+      trafficCars.push(mesh);
+    }
+
+    // ── Main loop ──
     function animate() {
       requestAnimationFrame(animate);
       const delta = clock.getDelta();
 
       if (window._gameReady && !window._isPaused && !gameOver) {
+
+        // Scroll road
         roadMesh.position.z += roadSpeed * delta;
         if (roadMesh.position.z > 300) roadMesh.position.z -= 600;
 
+        // Move player car
         if (car) {
           carCurrentX = THREE.MathUtils.lerp(carCurrentX, carTargetX, 0.2);
           carCurrentX = THREE.MathUtils.clamp(carCurrentX, -roadHalfWidth, roadHalfWidth);
@@ -464,14 +520,49 @@
           camera.lookAt(carCurrentX, 3, car.position.z - 10);
         }
 
+        // Score & level
         score += delta * 100;
         document.getElementById('score').textContent = Math.floor(score);
         document.getElementById('speed').textContent = Math.floor(roadSpeed);
-
         if (score > level * 1000) {
           level++;
           roadSpeed += 6;
           document.getElementById('level').textContent = level;
+        }
+
+        // ── Spawn traffic ──
+        if (trafficTemplates.length > 0 && trafficCars.length < MAX_TRAFFIC) {
+          spawnTimer -= delta;
+          // Spawn interval shrinks as level grows — harder over time
+          const interval = Math.max(0.8, 2.5 - level * 0.12);
+          if (spawnTimer <= 0) {
+            spawnTimer = interval + (Math.random() * 0.4 - 0.2); // slight random jitter
+            spawnTrafficCar();
+          }
+        }
+
+        // ── Move + recycle + collide traffic ──
+        for (let i = trafficCars.length - 1; i >= 0; i--) {
+          const tc = trafficCars[i];
+
+          // Traffic moves toward player at road speed
+          tc.position.z += roadSpeed * delta;
+
+          // Passed player → remove from scene, respawn from top next cycle
+          if (tc.position.z > DESPAWN_Z) {
+            scene.remove(tc);
+            trafficCars.splice(i, 1);
+            continue;
+          }
+
+          // Collision with player
+          if (car) {
+            const dx = Math.abs(tc.position.x - car.position.x);
+            const dz = Math.abs(tc.position.z - car.position.z);
+            if (dx < 2.0 && dz < 3.0) {
+              triggerGameOver();
+            }
+          }
         }
 
         // Day/night cycle
@@ -486,6 +577,14 @@
       }
 
       renderer.render(scene, camera);
+    }
+
+    function triggerGameOver() {
+      if (gameOver) return;
+      gameOver = true;
+      document.getElementById('finalScore').textContent = Math.floor(score);
+      document.getElementById('gameOver').style.display  = 'block';
+      document.getElementById('ui').style.display        = 'none';
     }
 
     function updateFog() {
