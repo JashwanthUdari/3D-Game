@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>3D Bike Dodger</title>
+  <title>3D Car Dodger</title>
   <style>
     body { margin:0; overflow:hidden; font-family:Arial; background:#000; }
     #ui {
@@ -69,22 +69,20 @@
     import * as THREE from 'three';
     import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
-    let scene, camera, renderer, roadMesh, bike, clock;
+    let scene, camera, renderer, roadMesh, car, clock;
     let score = 0, level = 1, roadSpeed = 30;
-    let bikeTargetX = 0, bikeCurrentX = 0;
+    let carTargetX = 0, carCurrentX = 0;
     const roadHalfWidth = 10;
     let isNight = false;
     let gameOver = false;
     let gameStarted = false;
-    let cars = [];
-    let spawnTimer = 0;
 
     function init() {
       scene = new THREE.Scene();
       updateFog();
 
-      camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.05, 1000); // lower near plane
-      camera.position.set(0, 7, 16);
+      camera = new THREE.PerspectiveCamera(78, window.innerWidth / window.innerHeight, 0.1, 2000);
+      camera.position.set(0, 5.5, 12); // closer & lower for car driving feel
 
       renderer = new THREE.WebGLRenderer({ antialias: true });
       renderer.setSize(window.innerWidth, window.innerHeight);
@@ -98,14 +96,14 @@
       dirLight.castShadow = true;
       scene.add(dirLight);
 
-      // Road
+      // Road – clean asphalt look
       const canvas = document.createElement('canvas');
       canvas.width = canvas.height = 1024;
       const ctx = canvas.getContext('2d');
-      ctx.fillStyle = '#2a2a2a'; ctx.fillRect(0,0,1024,1024);
+      ctx.fillStyle = '#222222'; ctx.fillRect(0,0,1024,1024);
       ctx.fillStyle = '#ffffff';
-      for (let y = 0; y < 1024; y += 200) {
-        ctx.fillRect(480, y, 64, 120);
+      for (let y = 0; y < 1024; y += 180) {
+        ctx.fillRect(480, y, 64, 100);
       }
       const roadTexture = new THREE.CanvasTexture(canvas);
       roadTexture.wrapS = roadTexture.wrapT = THREE.RepeatWrapping;
@@ -118,64 +116,38 @@
       roadMesh.rotation.x = -Math.PI / 2;
       scene.add(roadMesh);
 
-      // Bike
-      const bikeLoader = new GLTFLoader();
-      bikeLoader.load('assets/bike.glb', (gltf) => {
-        bike = gltf.scene;
-        bike.scale.set(3.2, 3.2, 3.2);
-        bike.position.set(0, 1.8, 0);
-        bike.rotation.y = Math.PI;
-        bike.castShadow = true;
-        scene.add(bike);
+      // Car (single model)
+      const loader = new GLTFLoader();
+      loader.load('assets/car.glb', (gltf) => {
+        car = gltf.scene;
+        car.scale.set(4.8, 4.8, 4.8);      // tuned size – adjust if needed
+        car.position.set(0, 2.2, 0);       // raised slightly
+        car.rotation.y = Math.PI;          // face forward
+        car.castShadow = true;
+        scene.add(car);
         gameStarted = true;
-      }, undefined, err => console.error("Bike load error:", err));
+        console.log("Car loaded successfully");
+      }, undefined, err => console.error("Car load error:", err));
 
       clock = new THREE.Clock();
       animate();
-    }
-
-    function spawnCar() {
-      const loader = new GLTFLoader();
-      loader.load('assets/car.glb', (gltf) => {
-        const car = gltf.scene;
-        car.scale.set(5.0, 5.0, 5.0); // much larger – adjust if still too small/big
-        car.position.set(
-          THREE.MathUtils.randFloat(-roadHalfWidth + 2, roadHalfWidth - 2),
-          1.8, // raised so not sunk
-          -180 - Math.random() * 80 // farther spawn
-        );
-        car.rotation.y = Math.PI; // face player
-        car.castShadow = true;
-
-        // Force basic emissive/glow so visible in dark
-        car.traverse(child => {
-          if (child.isMesh && child.material) {
-            child.material.emissive = new THREE.Color(0x0033aa);
-            child.material.emissiveIntensity = 0.4;
-          }
-        });
-
-        scene.add(car);
-        cars.push(car);
-        console.log("Car spawned at", car.position.x, car.position.z);
-      }, undefined, err => console.error("Car load error:", err));
     }
 
     function animate() {
       requestAnimationFrame(animate);
       const delta = clock.getDelta();
 
-      if (gameStarted && !gameOver && bike) {
+      if (gameStarted && !gameOver && car) {
         roadMesh.position.z += roadSpeed * delta;
         if (roadMesh.position.z > 300) roadMesh.position.z -= 600;
 
-        bikeCurrentX = THREE.MathUtils.lerp(bikeCurrentX, bikeTargetX, 0.2);
-        bikeCurrentX = THREE.MathUtils.clamp(bikeCurrentX, -roadHalfWidth, roadHalfWidth);
-        bike.position.x = bikeCurrentX;
-        bike.rotation.z = THREE.MathUtils.lerp(bike.rotation.z, (bikeTargetX - bikeCurrentX) * 0.15, 0.3);
+        carCurrentX = THREE.MathUtils.lerp(carCurrentX, carTargetX, 0.22);
+        carCurrentX = THREE.MathUtils.clamp(carCurrentX, -roadHalfWidth, roadHalfWidth);
+        car.position.x = carCurrentX;
+        car.rotation.z = THREE.MathUtils.lerp(car.rotation.z, (carTargetX - carCurrentX) * 0.12, 0.3);
 
-        camera.position.x = THREE.MathUtils.lerp(camera.position.x, bikeCurrentX * 0.6, 0.15);
-        camera.lookAt(bikeCurrentX, 4, bike.position.z - 12);
+        camera.position.x = THREE.MathUtils.lerp(camera.position.x, carCurrentX * 0.65, 0.16);
+        camera.lookAt(carCurrentX, 4, car.position.z - 14);
 
         score += delta * 100;
         document.getElementById('score').textContent = Math.floor(score);
@@ -185,68 +157,6 @@
           level++;
           roadSpeed += 6;
           document.getElementById('level').textContent = level;
-        }
-
-        // Spawn cars
-        <!-- Replace only the spawnCar() function in your current code with this -->
-
-function spawnCar() {
-  const loader = new GLTFLoader();
-  loader.load('assets/car.glb', (gltf) => {
-    const car = gltf.scene;
-
-    // Force correct scale, position, rotation — ignores model's original values
-    car.scale.set(6.0, 6.0, 6.0);          // Big enough to see clearly
-    car.position.set(
-      THREE.MathUtils.randFloat(-roadHalfWidth + 2, roadHalfWidth - 2),
-      2.0,                                    // Raised — no sinking
-      -220 - Math.random() * 80              // Spawn farther to avoid pop-in
-    );
-    car.rotation.y = Math.PI + Math.PI / 2;  // Face player correctly (adjust +90° if needed)
-
-    // Force visible material (emergency fallback if model is black)
-    car.traverse((child) => {
-      if (child.isMesh) {
-        child.castShadow = true;
-        child.receiveShadow = true;
-        if (child.material) {
-          child.material.emissive = new THREE.Color(0x111166);
-          child.material.emissiveIntensity = 0.6;
-          child.material.metalness = 0.3;
-          child.material.roughness = 0.7;
-        }
-      }
-    });
-
-    scene.add(car);
-    cars.push(car);
-    console.log("Car forced visible at scale 6, pos:", car.position);
-  }, undefined, (err) => {
-    console.error("Car failed to load:", err);
-  });
-}
-
-        // Update cars
-        for (let i = cars.length - 1; i >= 0; i--) {
-          const car = cars[i];
-          car.position.z += roadSpeed * delta;
-
-          if (car.position.z > bike.position.z + 10) {
-            scene.remove(car);
-            cars.splice(i, 1);
-            continue;
-          }
-
-          // Collision
-          const dist = bike.position.distanceTo(car.position);
-          if (dist < 5) { // larger hitbox for easier testing
-            gameOver = true;
-            document.getElementById('finalScore').textContent = Math.floor(score);
-            document.getElementById('gameOver').style.display = 'block';
-            // Flash effect
-            renderer.setClearColor(0xff0000, 0.4);
-            setTimeout(() => renderer.setClearColor(0x000000, 0), 400);
-          }
         }
 
         // Day/night
@@ -267,9 +177,10 @@ function spawnCar() {
       scene.fog = new THREE.Fog(isNight ? 0x191970 : 0x87CEEB, 50, 300);
     }
 
+    // Controls (arrows or A/D)
     window.addEventListener('keydown', e => {
-      if (e.code === 'ArrowLeft' || e.code === 'KeyA') bikeTargetX -= 2.5;
-      if (e.code === 'ArrowRight' || e.code === 'KeyD') bikeTargetX += 2.5;
+      if (e.code === 'ArrowLeft' || e.code === 'KeyA') carTargetX -= 2.8;
+      if (e.code === 'ArrowRight' || e.code === 'KeyD') carTargetX += 2.8;
     });
 
     window.addEventListener('resize', () => {
