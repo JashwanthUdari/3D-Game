@@ -76,6 +76,8 @@
     let isNight = false;
     let gameOver = false;
     let gameStarted = false;
+    let cars = [];
+    let spawnTimer = 0;
 
     function init() {
       scene = new THREE.Scene();
@@ -96,7 +98,7 @@
       dirLight.castShadow = true;
       scene.add(dirLight);
 
-      // Road – improved, no seams
+      // Road
       const canvas = document.createElement('canvas');
       canvas.width = canvas.height = 1024;
       const ctx = canvas.getContext('2d');
@@ -117,10 +119,10 @@
       scene.add(roadMesh);
 
       // Bike
-      const loader = new GLTFLoader();
-      loader.load('assets/bike.glb', (gltf) => {
+      const bikeLoader = new GLTFLoader();
+      bikeLoader.load('assets/bike.glb', (gltf) => {
         bike = gltf.scene;
-        bike.scale.set(3.2, 3.2, 3.2); // good visible size
+        bike.scale.set(3.2, 3.2, 3.2);
         bike.position.set(0, 1.8, 0);
         bike.rotation.y = Math.PI;
         bike.castShadow = true;
@@ -132,26 +134,39 @@
       animate();
     }
 
+    function spawnCar() {
+      const loader = new GLTFLoader();
+      loader.load('assets/car.glb', (gltf) => {
+        const car = gltf.scene;
+        car.scale.set(2.5, 2.5, 2.5);
+        car.position.set(
+          THREE.MathUtils.randFloat(-roadHalfWidth + 2, roadHalfWidth - 2),
+          1.5,
+          -150 - Math.random() * 50
+        );
+        car.rotation.y = Math.PI;
+        car.castShadow = true;
+        scene.add(car);
+        cars.push(car);
+      }, undefined, err => console.error("Car load error:", err));
+    }
+
     function animate() {
       requestAnimationFrame(animate);
       const delta = clock.getDelta();
 
       if (gameStarted && !gameOver && bike) {
-        // Road scroll
         roadMesh.position.z += roadSpeed * delta;
         if (roadMesh.position.z > 300) roadMesh.position.z -= 600;
 
-        // Bike movement
         bikeCurrentX = THREE.MathUtils.lerp(bikeCurrentX, bikeTargetX, 0.2);
         bikeCurrentX = THREE.MathUtils.clamp(bikeCurrentX, -roadHalfWidth, roadHalfWidth);
         bike.position.x = bikeCurrentX;
         bike.rotation.z = THREE.MathUtils.lerp(bike.rotation.z, (bikeTargetX - bikeCurrentX) * 0.15, 0.3);
 
-        // Camera follow
         camera.position.x = THREE.MathUtils.lerp(camera.position.x, bikeCurrentX * 0.6, 0.15);
         camera.lookAt(bikeCurrentX, 4, bike.position.z - 12);
 
-        // Score & level
         score += delta * 100;
         document.getElementById('score').textContent = Math.floor(score);
         document.getElementById('speed').textContent = Math.floor(roadSpeed);
@@ -160,6 +175,37 @@
           level++;
           roadSpeed += 6;
           document.getElementById('level').textContent = level;
+        }
+
+        // Spawn cars more often as level increases
+        spawnTimer += delta;
+        if (spawnTimer > Math.max(0.8, 2 - level * 0.1)) {
+          spawnCar();
+          spawnTimer = 0;
+        }
+
+        // Move & check cars
+        for (let i = cars.length - 1; i >= 0; i--) {
+          const car = cars[i];
+          car.position.z += roadSpeed * delta;
+
+          // Despawn if behind player
+          if (car.position.z > bike.position.z + 10) {
+            scene.remove(car);
+            cars.splice(i, 1);
+            continue;
+          }
+
+          // Collision check
+          const dist = bike.position.distanceTo(car.position);
+          if (dist < 4) {
+            gameOver = true;
+            document.getElementById('finalScore').textContent = Math.floor(score);
+            document.getElementById('gameOver').style.display = 'block';
+            // Simple flash effect
+            renderer.setClearColor(0xff0000, 0.3);
+            setTimeout(() => renderer.setClearColor(0x000000, 0), 300);
+          }
         }
 
         // Day/night
@@ -180,7 +226,6 @@
       scene.fog = new THREE.Fog(isNight ? 0x191970 : 0x87CEEB, 50, 300);
     }
 
-    // Controls
     window.addEventListener('keydown', e => {
       if (e.code === 'ArrowLeft' || e.code === 'KeyA') bikeTargetX -= 2.5;
       if (e.code === 'ArrowRight' || e.code === 'KeyD') bikeTargetX += 2.5;
