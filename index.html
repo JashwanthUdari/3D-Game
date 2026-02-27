@@ -3,12 +3,13 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>3D Car Dodger – Preview</title>
+  <title>3D Car Dodger</title>
   <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Rajdhani:wght@400;600;700&display=swap" rel="stylesheet">
   <style>
     *, *::before, *::after { box-sizing: border-box; }
     body { margin:0; overflow:hidden; font-family:'Rajdhani', Arial, sans-serif; background:#000; }
 
+    /* ───── HUD ───── */
     #ui {
       position: absolute;
       top: 14px; left: 14px;
@@ -22,6 +23,7 @@
     }
     #ui div { margin-bottom: 2px; }
 
+    /* ───── GAME OVER ───── */
     #gameOver {
       position: absolute;
       top: 50%; left: 50%;
@@ -38,6 +40,7 @@
     }
     #gameOver h2 { font-family:'Bebas Neue'; font-size:48px; color:#ff4444; margin:0 0 10px; letter-spacing:4px; }
 
+    /* ───── SHARED BUTTON STYLE ───── */
     .btn {
       padding: 14px 36px;
       background: linear-gradient(135deg, #00cc66, #009944);
@@ -55,7 +58,7 @@
     .btn:hover { transform: scale(1.05); box-shadow: 0 6px 28px rgba(0,200,100,0.6); }
     .btn:active { transform: scale(0.97); }
 
-    /* ── START SCREEN ── */
+    /* ───── START SCREEN OVERLAY ───── */
     #startScreen {
       position: absolute;
       inset: 0;
@@ -113,11 +116,9 @@
     }
     .step-card h3 {
       font-family: 'Bebas Neue', sans-serif;
-      letter-spacing: 3px;
-      font-size: 22px;
+      letter-spacing: 3px; font-size: 22px;
       color: rgba(0,255,180,0.9);
-      margin: 0 0 18px;
-      text-align: center;
+      margin: 0 0 18px; text-align: center;
     }
     .step-card.hidden { display: none; }
 
@@ -139,8 +140,7 @@
     .controls-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
     .controls-section h4 {
       font-family: 'Bebas Neue', sans-serif; letter-spacing: 2px;
-      color: rgba(0,255,180,0.8); font-size:16px;
-      margin: 0 0 10px;
+      color: rgba(0,255,180,0.8); font-size: 16px; margin: 0 0 10px;
       border-bottom: 1px solid rgba(0,255,180,0.2); padding-bottom: 6px;
     }
     .control-row {
@@ -169,7 +169,7 @@
     }
     .no-music-link:hover { color: rgba(255,255,255,0.6); }
 
-    /* ── PAUSE OVERLAY ── */
+    /* ───── PAUSE OVERLAY ───── */
     #pauseScreen {
       position: absolute; inset: 0; z-index: 150;
       display: none; align-items: center; justify-content: center; flex-direction: column;
@@ -185,26 +185,31 @@
       color: rgba(255,255,255,0.45); margin: 0 0 30px; text-transform: uppercase;
     }
 
-    /* ── SANDBOX NOTE ── */
-    #sandboxNote {
-      position: absolute;
-      bottom: 10px; left: 50%;
-      transform: translateX(-50%);
-      background: rgba(255,200,0,0.15);
-      border: 1px solid rgba(255,200,0,0.4);
-      color: rgba(255,220,80,0.9);
-      padding: 6px 18px;
-      border-radius: 20px;
-      font-size: 12px;
-      font-family: 'Rajdhani', sans-serif;
-      z-index: 400;
-      white-space: nowrap;
+    /* ───── LOADING SCREEN ───── */
+    #loadingScreen {
+      position: absolute; inset: 0; z-index: 250;
+      display: none; flex-direction: column;
+      align-items: center; justify-content: center;
+      background: #0a0a1a;
     }
+    #loadingScreen p {
+      font-family: 'Bebas Neue', sans-serif; font-size: 28px; letter-spacing: 4px;
+      color: rgba(0,255,180,0.8); margin-bottom: 20px;
+    }
+    .loading-bar-bg {
+      width: 260px; height: 6px;
+      background: rgba(255,255,255,0.1); border-radius: 10px; overflow: hidden;
+    }
+    .loading-bar-fill {
+      height: 100%; width: 0%;
+      background: linear-gradient(90deg, #00ffb4, #00ccff);
+      border-radius: 10px;
+      animation: loadFill 2s ease-out forwards;
+    }
+    @keyframes loadFill { from { width: 0%; } to { width: 100%; } }
   </style>
 </head>
 <body>
-
-  <div id="sandboxNote">⚠️ Preview mode — box car replaces GLB. Your real game uses car.glb as normal.</div>
 
   <!-- ══════════ START SCREEN ══════════ -->
   <div id="startScreen">
@@ -267,20 +272,27 @@
     </div>
   </div>
 
+  <!-- ══════════ LOADING SCREEN ══════════ -->
+  <div id="loadingScreen">
+    <p>⚙️ Loading...</p>
+    <div class="loading-bar-bg"><div class="loading-bar-fill" id="loadBar"></div></div>
+  </div>
+
+  <!-- ══════════ PAUSE SCREEN ══════════ -->
   <div id="pauseScreen">
     <h2>PAUSED</h2>
     <p>Press Space to Resume</p>
     <button class="btn" onclick="togglePause()">▶ RESUME</button>
   </div>
 
-  <!-- HUD -->
+  <!-- ══════════ HUD ══════════ -->
   <div id="ui">
     <div>Score: <span id="score">0</span></div>
     <div>Level: <span id="level">1</span></div>
     <div>Speed: <span id="speed">30</span></div>
   </div>
 
-  <!-- Game Over -->
+  <!-- ══════════ GAME OVER ══════════ -->
   <div id="gameOver">
     <h2>GAME OVER</h2>
     <p>Your score: <span id="finalScore">0</span></p>
@@ -289,6 +301,15 @@
   </div>
 
   <audio id="bgMusic" loop></audio>
+
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://unpkg.com/three@0.169.0/build/three.module.js",
+        "three/addons/": "https://unpkg.com/three@0.169.0/examples/jsm/"
+      }
+    }
+  </script>
 
   <script>
     let selectedMusic = null;
@@ -319,10 +340,8 @@
         audio.play().catch(() => {});
       }
       document.getElementById('startScreen').style.display = 'none';
-      document.getElementById('sandboxNote').style.display = 'none';
-      document.getElementById('ui').style.display = 'block';
-      window._gameReady = true;
-      window._isPaused = false;
+      document.getElementById('loadingScreen').style.display = 'flex';
+      window._startRequested = true;
     }
 
     function togglePause() {
@@ -334,17 +353,9 @@
     }
   </script>
 
-  <script type="importmap">
-    {
-      "imports": {
-        "three": "https://unpkg.com/three@0.169.0/build/three.module.js",
-        "three/addons/": "https://unpkg.com/three@0.169.0/examples/jsm/"
-      }
-    }
-  </script>
-
   <script type="module">
     import * as THREE from 'three';
+    import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
     let scene, camera, renderer, roadMesh, car, clock;
     let score = 0, level = 1, roadSpeed = 30;
@@ -353,90 +364,105 @@
     let isNight = false;
     let gameOver = false;
 
-    function init() {
-      scene = new THREE.Scene();
-      updateFog();
+    // ── Build scene immediately (no waiting) ──
+    scene = new THREE.Scene();
+    updateFog();
 
-      camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.05, 1000);
-      camera.position.set(0, 6, 14);
+    camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.05, 1000);
+    camera.position.set(0, 6, 14);
 
-      renderer = new THREE.WebGLRenderer({ antialias: true });
-      renderer.setSize(window.innerWidth, window.innerHeight);
-      renderer.shadowMap.enabled = true;
-      document.body.appendChild(renderer.domElement);
+    renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.shadowMap.enabled = true;
+    document.body.appendChild(renderer.domElement);
 
-      scene.add(new THREE.AmbientLight(0xffffff, 0.5));
-      const dirLight = new THREE.DirectionalLight(0xffffff, 1.5);
-      dirLight.position.set(15, 30, 20);
-      dirLight.castShadow = true;
-      scene.add(dirLight);
+    scene.add(new THREE.AmbientLight(0xffffff, 0.5));
+    const dirLight = new THREE.DirectionalLight(0xffffff, 1.5);
+    dirLight.position.set(15, 30, 20);
+    dirLight.castShadow = true;
+    dirLight.shadow.mapSize.width = 2048;
+    dirLight.shadow.mapSize.height = 2048;
+    scene.add(dirLight);
 
-      // Road
-      const canvas = document.createElement('canvas');
-      canvas.width = canvas.height = 1024;
-      const ctx = canvas.getContext('2d');
-      ctx.fillStyle = '#2a2a2a'; ctx.fillRect(0,0,1024,1024);
-      ctx.fillStyle = '#ffffff';
-      for (let y = 0; y < 1024; y += 200) ctx.fillRect(480, y, 64, 120);
-      const roadTexture = new THREE.CanvasTexture(canvas);
-      roadTexture.wrapS = roadTexture.wrapT = THREE.RepeatWrapping;
-      roadTexture.repeat.set(4, 160);
-      roadTexture.generateMipmaps = false;
-      roadTexture.minFilter = THREE.LinearFilter;
-      roadMesh = new THREE.Mesh(
-        new THREE.PlaneGeometry(20, 600),
-        new THREE.MeshLambertMaterial({ map: roadTexture })
+    // Road
+    const cvs = document.createElement('canvas');
+    cvs.width = cvs.height = 1024;
+    const ctx = cvs.getContext('2d');
+    ctx.fillStyle = '#2a2a2a'; ctx.fillRect(0,0,1024,1024);
+    ctx.fillStyle = '#ffffff';
+    for (let y = 0; y < 1024; y += 200) ctx.fillRect(480, y, 64, 120);
+    const roadTexture = new THREE.CanvasTexture(cvs);
+    roadTexture.wrapS = roadTexture.wrapT = THREE.RepeatWrapping;
+    roadTexture.repeat.set(4, 160);
+    roadTexture.generateMipmaps = false;
+    roadTexture.minFilter = THREE.LinearFilter;
+
+    roadMesh = new THREE.Mesh(
+      new THREE.PlaneGeometry(20, 600),
+      new THREE.MeshLambertMaterial({ map: roadTexture })
+    );
+    roadMesh.rotation.x = -Math.PI / 2;
+    scene.add(roadMesh);
+
+    clock = new THREE.Clock();
+    animate(); // start render loop right away
+
+    // ── Wait for START button, then load car.glb ──
+    const waitInterval = setInterval(() => {
+      if (!window._startRequested) return;
+      clearInterval(waitInterval);
+
+      const loader = new GLTFLoader();
+      loader.load(
+        'assets/car.glb',
+        (gltf) => {
+          // ✅ SUCCESS
+          car = gltf.scene;
+          car.scale.set(0.8, 0.8, 0.8);
+          car.position.set(0, 0, 0);
+          car.rotation.y = Math.PI;
+          car.castShadow = true;
+          scene.add(car);
+
+          document.getElementById('loadingScreen').style.display = 'none';
+          document.getElementById('ui').style.display = 'block';
+          window._gameReady = true;
+          window._isPaused = false;
+        },
+        (xhr) => {
+          // Progress feedback on loading bar
+          if (xhr.total) {
+            const pct = (xhr.loaded / xhr.total * 100).toFixed(0);
+            document.getElementById('loadBar').style.width = pct + '%';
+            document.getElementById('loadBar').style.animation = 'none';
+          }
+        },
+        (err) => {
+          // ❌ GLB failed — log and still launch game
+          console.error('car.glb load error:', err);
+          document.getElementById('loadingScreen').style.display = 'none';
+          document.getElementById('ui').style.display = 'block';
+          window._gameReady = true;
+          window._isPaused = false;
+        }
       );
-      roadMesh.rotation.x = -Math.PI / 2;
-      scene.add(roadMesh);
-
-      // ── PREVIEW: Simple box car instead of GLB ──
-      const bodyGeo  = new THREE.BoxGeometry(1.8, 0.7, 3.6);
-      const bodyMat  = new THREE.MeshLambertMaterial({ color: 0xff2200 });
-      const cabGeo   = new THREE.BoxGeometry(1.4, 0.55, 1.8);
-      const cabMat   = new THREE.MeshLambertMaterial({ color: 0xcc1100 });
-
-      car = new THREE.Group();
-      const body = new THREE.Mesh(bodyGeo, bodyMat);
-      body.position.y = 0.35;
-      const cab = new THREE.Mesh(cabGeo, cabMat);
-      cab.position.set(0, 0.9, -0.3);
-
-      // Wheels
-      const wheelGeo = new THREE.CylinderGeometry(0.4, 0.4, 0.3, 12);
-      const wheelMat = new THREE.MeshLambertMaterial({ color: 0x111111 });
-      [[-1,0, 1.1],[1,0, 1.1],[-1,0,-1.1],[1,0,-1.1]].forEach(([x,y,z]) => {
-        const w = new THREE.Mesh(wheelGeo, wheelMat);
-        w.rotation.z = Math.PI / 2;
-        w.position.set(x * 1.0, 0.1, z);
-        car.add(w);
-      });
-
-      car.add(body);
-      car.add(cab);
-      car.position.set(0, 0, 0);
-      car.rotation.y = Math.PI;
-      car.scale.set(1.5, 1.5, 1.5);
-      scene.add(car);
-
-      clock = new THREE.Clock();
-      animate();
-    }
+    }, 100);
 
     function animate() {
       requestAnimationFrame(animate);
       const delta = clock.getDelta();
 
-      if (window._gameReady && !window._isPaused && !gameOver && car) {
+      if (window._gameReady && !window._isPaused && !gameOver) {
         roadMesh.position.z += roadSpeed * delta;
         if (roadMesh.position.z > 300) roadMesh.position.z -= 600;
 
-        carCurrentX = THREE.MathUtils.lerp(carCurrentX, carTargetX, 0.2);
-        carCurrentX = THREE.MathUtils.clamp(carCurrentX, -roadHalfWidth, roadHalfWidth);
-        car.position.x = carCurrentX;
-
-        camera.position.x = THREE.MathUtils.lerp(camera.position.x, carCurrentX * 0.6, 0.15);
-        camera.lookAt(carCurrentX, 3, car.position.z - 10);
+        if (car) {
+          carCurrentX = THREE.MathUtils.lerp(carCurrentX, carTargetX, 0.2);
+          carCurrentX = THREE.MathUtils.clamp(carCurrentX, -roadHalfWidth, roadHalfWidth);
+          car.position.x = carCurrentX;
+          camera.position.x = THREE.MathUtils.lerp(camera.position.x, carCurrentX * 0.6, 0.15);
+          camera.lookAt(carCurrentX, 3, car.position.z - 10);
+        }
 
         score += delta * 100;
         document.getElementById('score').textContent = Math.floor(score);
@@ -448,6 +474,7 @@
           document.getElementById('level').textContent = level;
         }
 
+        // Day/night cycle
         const elapsed = clock.getElapsedTime();
         const cycle = Math.floor(elapsed / 20) % 2;
         if (cycle !== (isNight ? 1 : 0)) {
@@ -465,6 +492,7 @@
       scene.fog = new THREE.Fog(isNight ? 0x191970 : 0x87CEEB, 50, 300);
     }
 
+    // ── Keyboard ──
     window.addEventListener('keydown', e => {
       if (!window._gameReady) return;
       if (e.code === 'Space') { e.preventDefault(); togglePause(); return; }
@@ -473,6 +501,7 @@
       if (e.code === 'ArrowRight' || e.code === 'KeyD') carTargetX += 2.5;
     });
 
+    // ── Touch / Swipe ──
     let touchStartX = 0;
     window.addEventListener('touchstart', e => { touchStartX = e.touches[0].clientX; }, { passive: true });
     window.addEventListener('touchend', e => {
@@ -490,8 +519,6 @@
       camera.updateProjectionMatrix();
       renderer.setSize(window.innerWidth, window.innerHeight);
     });
-
-    init();
   </script>
 </body>
 </html>
