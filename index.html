@@ -225,10 +225,10 @@
     <div class="step-card" id="step1">
       <h3>🎵 Choose Your Music</h3>
       <div class="music-options">
-        <div class="music-btn" id="phonkBtn" onclick="selectMusic('phonk')">
-          <span class="music-icon">🔥</span>
-          <strong>Phonk</strong>
-          <span class="music-label">Phonk-Theme.mp3</span>
+        <div class="music-btn" id="classicBtn" onclick="selectMusic('classic')">
+          <span class="music-icon">🎵</span>
+          <strong>Classic</strong>
+          <span class="music-label">Classic-Theme.mp3</span>
         </div>
         <div class="music-btn" id="gameBtn" onclick="selectMusic('game')">
           <span class="music-icon">🎮</span>
@@ -316,10 +316,10 @@
 
     function selectMusic(type) {
       selectedMusic = type;
-      document.getElementById('phonkBtn').classList.remove('selected');
+      document.getElementById('classicBtn').classList.remove('selected');
       document.getElementById('gameBtn').classList.remove('selected');
-      if (type === 'phonk') document.getElementById('phonkBtn').classList.add('selected');
-      if (type === 'game')  document.getElementById('gameBtn').classList.add('selected');
+      if (type === 'classic') document.getElementById('classicBtn').classList.add('selected');
+      if (type === 'game')    document.getElementById('gameBtn').classList.add('selected');
       const nextBtn = document.getElementById('nextBtn');
       nextBtn.style.opacity = '1';
       nextBtn.style.pointerEvents = 'auto';
@@ -333,12 +333,7 @@
     }
 
     function startGame() {
-      if (selectedMusic && selectedMusic !== 'none') {
-        const audio = document.getElementById('bgMusic');
-        audio.src = selectedMusic === 'phonk' ? 'assets/Phonk-Theme.mp3' : 'assets/Game-Theme.mp3';
-        audio.volume = 0.45;
-        audio.play().catch(() => {});
-      }
+      // Music will play after car loads — stored in selectedMusic
       document.getElementById('startScreen').style.display = 'none';
       document.getElementById('loadingScreen').style.display = 'flex';
       window._startRequested = true;
@@ -483,6 +478,16 @@
           document.getElementById('ui').style.display = 'block';
           window._gameReady = true;
           window._isPaused  = false;
+
+          // ── Play music now that everything is loaded ──
+          if (selectedMusic && selectedMusic !== 'none') {
+            const audio = document.getElementById('bgMusic');
+            audio.src = selectedMusic === 'classic'
+              ? 'assets/Classic-Theme.mp3'
+              : 'assets/Game-Theme.mp3';
+            audio.volume = 0.45;
+            audio.play().catch(() => {});
+          }
         },
         (xhr) => {
           if (xhr.total) {
@@ -574,15 +579,15 @@
             continue;
           }
 
-          // Collision with player
+          // Collision with player — tightened box to prevent ghost crashes
           if (car) {
             const dx = Math.abs(tc.position.x - car.position.x);
             const dz = Math.abs(tc.position.z - car.position.z);
-            if (dx < 2.0 && dz < 3.0) {
+            if (dx < 1.4 && dz < 2.2) {
               triggerShake(SHAKE_COLLISION.duration, SHAKE_COLLISION.intensity);
               triggerGameOver();
-            } else if (dx < 3.5 && dz < 4.5) {
-              // Near-miss zone — just outside collision box
+            } else if (dx < 2.6 && dz < 3.5) {
+              // Near-miss zone
               triggerShake(SHAKE_NEAR_MISS.duration, SHAKE_NEAR_MISS.intensity);
             }
           }
