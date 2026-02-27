@@ -261,7 +261,7 @@
           Score increases over time · Every 10k points = faster speed
         </div>
         <button class="btn" onclick="startGame()" style="font-size:26px; padding:16px 60px; margin-top:10px;">
-           START
+          🚗 START
         </button>
       </div>
     </div>
@@ -391,24 +391,24 @@
       scene.add(roadMesh);
 
       // ── PREVIEW: Simple box car instead of GLB ──
-      const bodyGeo  = new THREE.BoxGeometry(3.6, 1.4, 7.2);
+      const bodyGeo  = new THREE.BoxGeometry(1.8, 0.7, 3.6);
       const bodyMat  = new THREE.MeshLambertMaterial({ color: 0xff2200 });
-      const cabGeo   = new THREE.BoxGeometry(2.8, 1.1, 3.6);
+      const cabGeo   = new THREE.BoxGeometry(1.4, 0.55, 1.8);
       const cabMat   = new THREE.MeshLambertMaterial({ color: 0xcc1100 });
 
       car = new THREE.Group();
       const body = new THREE.Mesh(bodyGeo, bodyMat);
-      body.position.y = 0.7;
+      body.position.y = 0.35;
       const cab = new THREE.Mesh(cabGeo, cabMat);
-      cab.position.set(0, 1.8, -0.6);
+      cab.position.set(0, 0.9, -0.3);
 
       // Wheels
-      const wheelGeo = new THREE.CylinderGeometry(0.8, 0.8, 0.6, 12);
+      const wheelGeo = new THREE.CylinderGeometry(0.4, 0.4, 0.3, 12);
       const wheelMat = new THREE.MeshLambertMaterial({ color: 0x111111 });
-      [[-1,0, 2.2],[1,0, 2.2],[-1,0,-2.2],[1,0,-2.2]].forEach(([x,y,z]) => {
+      [[-1,0, 1.1],[1,0, 1.1],[-1,0,-1.1],[1,0,-1.1]].forEach(([x,y,z]) => {
         const w = new THREE.Mesh(wheelGeo, wheelMat);
         w.rotation.z = Math.PI / 2;
-        w.position.set(x * 2.0, 0.2, z);
+        w.position.set(x * 1.0, 0.1, z);
         car.add(w);
       });
 
@@ -416,6 +416,7 @@
       car.add(cab);
       car.position.set(0, 0, 0);
       car.rotation.y = Math.PI;
+      car.scale.set(2, 2, 2);
       scene.add(car);
 
       clock = new THREE.Clock();
