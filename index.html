@@ -76,13 +76,15 @@
     let isNight = false;
     let gameOver = false;
     let gameStarted = false;
+    let cars = [];
+    let spawnTimer = 0;
 
     function init() {
       scene = new THREE.Scene();
       updateFog();
 
-      camera = new THREE.PerspectiveCamera(78, window.innerWidth / window.innerHeight, 0.1, 2000);
-      camera.position.set(0, 5.5, 12); // closer & lower for car driving feel
+      camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.05, 1000);
+      camera.position.set(0, 6, 14); // Adjusted for better car view
 
       renderer = new THREE.WebGLRenderer({ antialias: true });
       renderer.setSize(window.innerWidth, window.innerHeight);
@@ -90,20 +92,22 @@
       document.body.appendChild(renderer.domElement);
 
       // Lights
-      scene.add(new THREE.AmbientLight(0x80a0ff, 0.6));
-      const dirLight = new THREE.DirectionalLight(0xffffff, 1.4);
-      dirLight.position.set(10, 25, 15);
+      scene.add(new THREE.AmbientLight(0xffffff, 0.5)); // Brighter ambient to avoid blackouts
+      const dirLight = new THREE.DirectionalLight(0xffffff, 1.5);
+      dirLight.position.set(15, 30, 20);
       dirLight.castShadow = true;
+      dirLight.shadow.mapSize.width = 2048;
+      dirLight.shadow.mapSize.height = 2048;
       scene.add(dirLight);
 
-      // Road – clean asphalt look
+      // Road
       const canvas = document.createElement('canvas');
       canvas.width = canvas.height = 1024;
       const ctx = canvas.getContext('2d');
-      ctx.fillStyle = '#222222'; ctx.fillRect(0,0,1024,1024);
+      ctx.fillStyle = '#2a2a2a'; ctx.fillRect(0,0,1024,1024);
       ctx.fillStyle = '#ffffff';
-      for (let y = 0; y < 1024; y += 180) {
-        ctx.fillRect(480, y, 64, 100);
+      for (let y = 0; y < 1024; y += 200) {
+        ctx.fillRect(480, y, 64, 120);
       }
       const roadTexture = new THREE.CanvasTexture(canvas);
       roadTexture.wrapS = roadTexture.wrapT = THREE.RepeatWrapping;
@@ -116,17 +120,16 @@
       roadMesh.rotation.x = -Math.PI / 2;
       scene.add(roadMesh);
 
-      // Car (single model)
+      // Player Car
       const loader = new GLTFLoader();
       loader.load('assets/car.glb', (gltf) => {
         car = gltf.scene;
-        car.scale.set(4.8, 4.8, 4.8);      // tuned size – adjust if needed
-        car.position.set(0, 2.2, 0);       // raised slightly
-        car.rotation.y = Math.PI;          // face forward
+        car.scale.set(0.8, 0.8, 0.8); // Comment: Adjust scale here if car is too big/small (e.g., 0.5 for smaller, 1.5 for larger)
+        car.position.set(0, 0, 0); // Adjusted Y to sit on road
+        car.rotation.y = Math.PI; // Face forward
         car.castShadow = true;
         scene.add(car);
         gameStarted = true;
-        console.log("Car loaded successfully");
       }, undefined, err => console.error("Car load error:", err));
 
       clock = new THREE.Clock();
@@ -141,13 +144,13 @@
         roadMesh.position.z += roadSpeed * delta;
         if (roadMesh.position.z > 300) roadMesh.position.z -= 600;
 
-        carCurrentX = THREE.MathUtils.lerp(carCurrentX, carTargetX, 0.22);
+        carCurrentX = THREE.MathUtils.lerp(carCurrentX, carTargetX, 0.2);
         carCurrentX = THREE.MathUtils.clamp(carCurrentX, -roadHalfWidth, roadHalfWidth);
         car.position.x = carCurrentX;
-        car.rotation.z = THREE.MathUtils.lerp(car.rotation.z, (carTargetX - carCurrentX) * 0.12, 0.3);
+        // No tilt/rotation.z for car – keeps it flat
 
-        camera.position.x = THREE.MathUtils.lerp(camera.position.x, carCurrentX * 0.65, 0.16);
-        camera.lookAt(carCurrentX, 4, car.position.z - 14);
+        camera.position.x = THREE.MathUtils.lerp(camera.position.x, carCurrentX * 0.6, 0.15);
+        camera.lookAt(carCurrentX, 3, car.position.z - 10);
 
         score += delta * 100;
         document.getElementById('score').textContent = Math.floor(score);
@@ -177,10 +180,9 @@
       scene.fog = new THREE.Fog(isNight ? 0x191970 : 0x87CEEB, 50, 300);
     }
 
-    // Controls (arrows or A/D)
     window.addEventListener('keydown', e => {
-      if (e.code === 'ArrowLeft' || e.code === 'KeyA') carTargetX -= 2.8;
-      if (e.code === 'ArrowRight' || e.code === 'KeyD') carTargetX += 2.8;
+      if (e.code === 'ArrowLeft' || e.code === 'KeyA') carTargetX -= 2.5;
+      if (e.code === 'ArrowRight' || e.code === 'KeyD') carTargetX += 2.5;
     });
 
     window.addEventListener('resize', () => {
