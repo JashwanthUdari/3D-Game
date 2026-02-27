@@ -188,11 +188,43 @@
         }
 
         // Spawn cars
-        spawnTimer += delta;
-        if (spawnTimer > Math.max(0.8, 2 - level * 0.1)) {
-          spawnCar();
-          spawnTimer = 0;
+        <!-- Replace only the spawnCar() function in your current code with this -->
+
+function spawnCar() {
+  const loader = new GLTFLoader();
+  loader.load('assets/car.glb', (gltf) => {
+    const car = gltf.scene;
+
+    // Force correct scale, position, rotation — ignores model's original values
+    car.scale.set(6.0, 6.0, 6.0);          // Big enough to see clearly
+    car.position.set(
+      THREE.MathUtils.randFloat(-roadHalfWidth + 2, roadHalfWidth - 2),
+      2.0,                                    // Raised — no sinking
+      -220 - Math.random() * 80              // Spawn farther to avoid pop-in
+    );
+    car.rotation.y = Math.PI + Math.PI / 2;  // Face player correctly (adjust +90° if needed)
+
+    // Force visible material (emergency fallback if model is black)
+    car.traverse((child) => {
+      if (child.isMesh) {
+        child.castShadow = true;
+        child.receiveShadow = true;
+        if (child.material) {
+          child.material.emissive = new THREE.Color(0x111166);
+          child.material.emissiveIntensity = 0.6;
+          child.material.metalness = 0.3;
+          child.material.roughness = 0.7;
         }
+      }
+    });
+
+    scene.add(car);
+    cars.push(car);
+    console.log("Car forced visible at scale 6, pos:", car.position);
+  }, undefined, (err) => {
+    console.error("Car failed to load:", err);
+  });
+}
 
         // Update cars
         for (let i = cars.length - 1; i >= 0; i--) {
