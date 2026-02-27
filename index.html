@@ -83,7 +83,7 @@
       scene = new THREE.Scene();
       updateFog();
 
-      camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+      camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.05, 1000); // lower near plane
       camera.position.set(0, 7, 16);
 
       renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -92,9 +92,9 @@
       document.body.appendChild(renderer.domElement);
 
       // Lights
-      scene.add(new THREE.AmbientLight(0x80a0ff, 0.5));
-      const dirLight = new THREE.DirectionalLight(0xffffff, 1.3);
-      dirLight.position.set(10, 20, 10);
+      scene.add(new THREE.AmbientLight(0x80a0ff, 0.6));
+      const dirLight = new THREE.DirectionalLight(0xffffff, 1.4);
+      dirLight.position.set(10, 25, 15);
       dirLight.castShadow = true;
       scene.add(dirLight);
 
@@ -138,16 +138,26 @@
       const loader = new GLTFLoader();
       loader.load('assets/car.glb', (gltf) => {
         const car = gltf.scene;
-        car.scale.set(2.5, 2.5, 2.5);
+        car.scale.set(5.0, 5.0, 5.0); // much larger – adjust if still too small/big
         car.position.set(
           THREE.MathUtils.randFloat(-roadHalfWidth + 2, roadHalfWidth - 2),
-          1.5,
-          -150 - Math.random() * 50
+          1.8, // raised so not sunk
+          -180 - Math.random() * 80 // farther spawn
         );
-        car.rotation.y = Math.PI;
+        car.rotation.y = Math.PI; // face player
         car.castShadow = true;
+
+        // Force basic emissive/glow so visible in dark
+        car.traverse(child => {
+          if (child.isMesh && child.material) {
+            child.material.emissive = new THREE.Color(0x0033aa);
+            child.material.emissiveIntensity = 0.4;
+          }
+        });
+
         scene.add(car);
         cars.push(car);
+        console.log("Car spawned at", car.position.x, car.position.z);
       }, undefined, err => console.error("Car load error:", err));
     }
 
@@ -177,34 +187,33 @@
           document.getElementById('level').textContent = level;
         }
 
-        // Spawn cars more often as level increases
+        // Spawn cars
         spawnTimer += delta;
         if (spawnTimer > Math.max(0.8, 2 - level * 0.1)) {
           spawnCar();
           spawnTimer = 0;
         }
 
-        // Move & check cars
+        // Update cars
         for (let i = cars.length - 1; i >= 0; i--) {
           const car = cars[i];
           car.position.z += roadSpeed * delta;
 
-          // Despawn if behind player
           if (car.position.z > bike.position.z + 10) {
             scene.remove(car);
             cars.splice(i, 1);
             continue;
           }
 
-          // Collision check
+          // Collision
           const dist = bike.position.distanceTo(car.position);
-          if (dist < 4) {
+          if (dist < 5) { // larger hitbox for easier testing
             gameOver = true;
             document.getElementById('finalScore').textContent = Math.floor(score);
             document.getElementById('gameOver').style.display = 'block';
-            // Simple flash effect
-            renderer.setClearColor(0xff0000, 0.3);
-            setTimeout(() => renderer.setClearColor(0x000000, 0), 300);
+            // Flash effect
+            renderer.setClearColor(0xff0000, 0.4);
+            setTimeout(() => renderer.setClearColor(0x000000, 0), 400);
           }
         }
 
