@@ -266,7 +266,7 @@
           Score increases over time · Every 10k points = faster speed
         </div>
         <button class="btn" onclick="startGame()" style="font-size:26px; padding:16px 60px; margin-top:10px;">
-          🚗 START
+          START
         </button>
       </div>
     </div>
@@ -391,7 +391,6 @@
 
     // ── Scene setup ──
     scene = new THREE.Scene();
-    updateFog();
 
     camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.05, 1000);
     camera.position.set(0, 6, 14);
@@ -399,8 +398,10 @@
     renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.shadowMap.enabled = true;
-    renderer.setClearColor(0x87CEEB); // day sky blue — matches fog so no black seam
+    renderer.setClearColor(0x87CEEB);
     document.body.appendChild(renderer.domElement);
+
+    updateFog(); // ← moved here, after renderer exists
 
     scene.add(new THREE.AmbientLight(0xffffff, 0.5));
     const dirLight = new THREE.DirectionalLight(0xffffff, 1.5);
@@ -442,44 +443,50 @@
     clock = new THREE.Clock();
     animate();
 
-    // ── Build a box car as instant fallback ──
-    function buildBoxCar() {
+    // ── Build box car (used instantly, swapped when GLB loads) ──
+    function buildBoxCar(color1 = 0xff2200, color2 = 0xcc1100) {
       const group = new THREE.Group();
       const body = new THREE.Mesh(
         new THREE.BoxGeometry(1.8, 0.7, 3.6),
-        new THREE.MeshLambertMaterial({ color: 0xff2200 })
+        new THREE.MeshLambertMaterial({ color: color1 })
       );
       body.position.y = 0.35;
       group.add(body);
       const cab = new THREE.Mesh(
         new THREE.BoxGeometry(1.4, 0.55, 1.8),
-        new THREE.MeshLambertMaterial({ color: 0xcc1100 })
+        new THREE.MeshLambertMaterial({ color: color2 })
       );
       cab.position.set(0, 0.9, -0.3);
       group.add(cab);
       const wheelGeo = new THREE.CylinderGeometry(0.4, 0.4, 0.3, 12);
       const wheelMat = new THREE.MeshLambertMaterial({ color: 0x111111 });
-      [[-1, 0, 1.1],[1, 0, 1.1],[-1, 0,-1.1],[1, 0,-1.1]].forEach(([x,y,z]) => {
+      [[-1,0,1.1],[1,0,1.1],[-1,0,-1.1],[1,0,-1.1]].forEach(([x,y,z]) => {
         const w = new THREE.Mesh(wheelGeo, wheelMat);
         w.rotation.z = Math.PI / 2;
         w.position.set(x, 0.1, z);
         group.add(w);
       });
-      group.scale.set(CAR_SCALE, CAR_SCALE, CAR_SCALE);
-      group.rotation.y = Math.PI;
       return group;
     }
 
-    // ── Launch game (called as soon as player car is ready) ──
-    function launchGame(playerCar) {
-      if (window._gameReady) return; // prevent double-call
-      car = playerCar;
+    // ── Watch for START — launch INSTANTLY with box car ──
+    const waitInterval = setInterval(() => {
+      if (!window._startRequested) return;
+      clearInterval(waitInterval);
+
+      // 🚗 Start game IMMEDIATELY with box car — zero wait
+      car = buildBoxCar();
+      car.scale.set(CAR_SCALE, CAR_SCALE, CAR_SCALE);
+      car.rotation.y = Math.PI;
       car.position.set(0, 0, 0);
       scene.add(car);
+
       document.getElementById('loadingScreen').classList.remove('active');
       document.getElementById('ui').style.display = 'block';
       window._gameReady = true;
       window._isPaused  = false;
+
+      // Play music
       if (window._selectedMusic && window._selectedMusic !== 'none') {
         const audio = document.getElementById('bgMusic');
         audio.src = window._selectedMusic === 'classic'
@@ -488,62 +495,51 @@
         audio.volume = 0.45;
         audio.play().catch(() => {});
       }
-    }
 
-    // ── Wait for START, then load models ──
-    const waitInterval = setInterval(() => {
-      if (!window._startRequested) return;
-      clearInterval(waitInterval);
-
+      // 🔄 Try loading real GLB models in background — swap when ready
       const loader = new GLTFLoader();
 
-      // ⏱ Hard timeout — 5 seconds max, then use box car fallback
-      const carTimeout = setTimeout(() => {
-        if (!window._gameReady) {
-          console.warn('car.glb timeout — using box car fallback');
-          launchGame(buildBoxCar());
-        }
-      }, 5000);
-
-      // Try loading real car.glb
       loader.load('assets/car.glb',
         (gltf) => {
-          clearTimeout(carTimeout);
-          const playerCar = gltf.scene;
-          playerCar.scale.set(CAR_SCALE, CAR_SCALE, CAR_SCALE);
-          playerCar.rotation.y = Math.PI;
-          playerCar.castShadow = true;
-          launchGame(playerCar);
-
-          // Traffic loads silently in background after game starts
-          const trafficFiles = [
-            { file: 'assets/car-side.glb',  rotY: Math.PI     },
-            { file: 'assets/car-side1.glb', rotY: Math.PI     },
-            { file: 'assets/car-side2.glb', rotY: Math.PI / 2 },
-          ];
-          trafficFiles.forEach(({ file, rotY }) => {
-            loader.load(file,
-              (tGltf) => {
-                tGltf.scene.rotation.y = rotY;
-                trafficTemplates.push(tGltf.scene);
-              },
-              undefined,
-              (err) => console.warn('Traffic GLB skipped:', file, err)
-            );
-          });
+          // Swap box car for real GLB silently mid-game
+          scene.remove(car);
+          car = gltf.scene;
+          car.scale.set(CAR_SCALE, CAR_SCALE, CAR_SCALE);
+          car.rotation.y = Math.PI;
+          car.position.set(carCurrentX, 0, 0);
+          car.castShadow = true;
+          scene.add(car);
         },
-        (xhr) => {
-          if (xhr.total) {
-            const pct = Math.round(xhr.loaded / xhr.total * 100);
-            document.getElementById('loadBar').style.width = pct + '%';
-          }
-        },
-        (err) => {
-          clearTimeout(carTimeout);
-          console.error('car.glb error — using box car:', err);
-          launchGame(buildBoxCar());
-        }
+        undefined,
+        (err) => console.warn('car.glb failed, keeping box car:', err)
       );
+
+      // Traffic GLBs — load in background, fall back to box cars
+      const trafficFiles = [
+        { file: 'assets/car-side.glb',  rotY: Math.PI,     c1: 0x0044ff, c2: 0x0033cc },
+        { file: 'assets/car-side1.glb', rotY: Math.PI,     c1: 0xffaa00, c2: 0xcc8800 },
+        { file: 'assets/car-side2.glb', rotY: Math.PI / 2, c1: 0x00bb44, c2: 0x009933 },
+      ];
+      trafficFiles.forEach(({ file, rotY, c1, c2 }) => {
+        // Add a colored box car as placeholder traffic immediately
+        const placeholder = buildBoxCar(c1, c2);
+        placeholder.scale.set(CAR_SCALE, CAR_SCALE, CAR_SCALE);
+        placeholder.rotation.y = rotY;
+        trafficTemplates.push(placeholder);
+
+        // Try to upgrade to real GLB
+        loader.load(file,
+          (tGltf) => {
+            tGltf.scene.rotation.y = rotY;
+            // Replace placeholder with real model
+            const idx = trafficTemplates.indexOf(placeholder);
+            if (idx !== -1) trafficTemplates[idx] = tGltf.scene;
+          },
+          undefined,
+          (err) => console.warn('Traffic GLB skipped, using box:', file, err)
+        );
+      });
+
     }, 100);
 
     // ── Spawn one traffic car in a random lane ──
