@@ -439,39 +439,80 @@
     clock = new THREE.Clock();
     animate();
 
-    // ── Wait for START, then load all models ──
+    // ── Build a box car as instant fallback ──
+    function buildBoxCar() {
+      const group = new THREE.Group();
+      const body = new THREE.Mesh(
+        new THREE.BoxGeometry(1.8, 0.7, 3.6),
+        new THREE.MeshLambertMaterial({ color: 0xff2200 })
+      );
+      body.position.y = 0.35;
+      group.add(body);
+      const cab = new THREE.Mesh(
+        new THREE.BoxGeometry(1.4, 0.55, 1.8),
+        new THREE.MeshLambertMaterial({ color: 0xcc1100 })
+      );
+      cab.position.set(0, 0.9, -0.3);
+      group.add(cab);
+      const wheelGeo = new THREE.CylinderGeometry(0.4, 0.4, 0.3, 12);
+      const wheelMat = new THREE.MeshLambertMaterial({ color: 0x111111 });
+      [[-1, 0, 1.1],[1, 0, 1.1],[-1, 0,-1.1],[1, 0,-1.1]].forEach(([x,y,z]) => {
+        const w = new THREE.Mesh(wheelGeo, wheelMat);
+        w.rotation.z = Math.PI / 2;
+        w.position.set(x, 0.1, z);
+        group.add(w);
+      });
+      group.scale.set(CAR_SCALE, CAR_SCALE, CAR_SCALE);
+      group.rotation.y = Math.PI;
+      return group;
+    }
+
+    // ── Launch game (called as soon as player car is ready) ──
+    function launchGame(playerCar) {
+      if (window._gameReady) return; // prevent double-call
+      car = playerCar;
+      car.position.set(0, 0, 0);
+      scene.add(car);
+      document.getElementById('loadingScreen').classList.remove('active');
+      document.getElementById('ui').style.display = 'block';
+      window._gameReady = true;
+      window._isPaused  = false;
+      if (selectedMusic && selectedMusic !== 'none') {
+        const audio = document.getElementById('bgMusic');
+        audio.src = selectedMusic === 'classic'
+          ? 'assets/Classic-Theme.mp3'
+          : 'assets/Game-Theme.mp3';
+        audio.volume = 0.45;
+        audio.play().catch(() => {});
+      }
+    }
+
+    // ── Wait for START, then load models ──
     const waitInterval = setInterval(() => {
       if (!window._startRequested) return;
       clearInterval(waitInterval);
 
       const loader = new GLTFLoader();
 
-      // ── Load player car first — game starts as soon as this finishes ──
+      // ⏱ Hard timeout — 5 seconds max, then use box car fallback
+      const carTimeout = setTimeout(() => {
+        if (!window._gameReady) {
+          console.warn('car.glb timeout — using box car fallback');
+          launchGame(buildBoxCar());
+        }
+      }, 5000);
+
+      // Try loading real car.glb
       loader.load('assets/car.glb',
         (gltf) => {
-          car = gltf.scene;
-          car.scale.set(CAR_SCALE, CAR_SCALE, CAR_SCALE);
-          car.position.set(0, 0, 0);
-          car.rotation.y = Math.PI;
-          car.castShadow = true;
-          scene.add(car);
+          clearTimeout(carTimeout);
+          const playerCar = gltf.scene;
+          playerCar.scale.set(CAR_SCALE, CAR_SCALE, CAR_SCALE);
+          playerCar.rotation.y = Math.PI;
+          playerCar.castShadow = true;
+          launchGame(playerCar);
 
-          // ✅ Game starts NOW — don't wait for traffic
-          document.getElementById('loadingScreen').classList.remove('active');
-          document.getElementById('ui').style.display = 'block';
-          window._gameReady = true;
-          window._isPaused  = false;
-
-          if (selectedMusic && selectedMusic !== 'none') {
-            const audio = document.getElementById('bgMusic');
-            audio.src = selectedMusic === 'classic'
-              ? 'assets/Classic-Theme.mp3'
-              : 'assets/Game-Theme.mp3';
-            audio.volume = 0.45;
-            audio.play().catch(() => {});
-          }
-
-          // ── Traffic loads silently in background after game starts ──
+          // Traffic loads silently in background after game starts
           const trafficFiles = [
             { file: 'assets/car-side.glb',  rotY: Math.PI     },
             { file: 'assets/car-side1.glb', rotY: Math.PI     },
@@ -495,12 +536,9 @@
           }
         },
         (err) => {
-          // car.glb failed — start anyway with no car
-          console.error('car.glb failed:', err);
-          document.getElementById('loadingScreen').classList.remove('active');
-          document.getElementById('ui').style.display = 'block';
-          window._gameReady = true;
-          window._isPaused  = false;
+          clearTimeout(carTimeout);
+          console.error('car.glb error — using box car:', err);
+          launchGame(buildBoxCar());
         }
       );
     }, 100);
