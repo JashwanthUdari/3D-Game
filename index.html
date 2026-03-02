@@ -539,7 +539,6 @@
     // ── Spawn one traffic car in a random lane ──
     function spawnTrafficCar() {
       if (trafficTemplates.length === 0) return;
-
       // Pick random template and random lane
       const template = trafficTemplates[Math.floor(Math.random() * trafficTemplates.length)];
       const laneX    = LANES[Math.floor(Math.random() * LANES.length)];
