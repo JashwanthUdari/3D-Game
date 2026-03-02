@@ -266,7 +266,7 @@
           Score increases over time · Every 10k points = faster speed
         </div>
         <button class="btn" onclick="startGame()" style="font-size:26px; padding:16px 60px; margin-top:10px;">
-          START
+          🚗 START
         </button>
       </div>
     </div>
@@ -496,13 +496,12 @@
         audio.play().catch(() => {});
       }
 
-      // 🔄 Try loading real GLB models in background — swap when ready
+      // 🔄 Load real GLB in background — swap when ready
       const loader = new GLTFLoader();
-
       loader.load('assets/car.glb',
         (gltf) => {
-          // Swap box car for real GLB silently mid-game
-          scene.remove(car);
+          const oldCar = car;
+          scene.remove(oldCar);
           car = gltf.scene;
           car.scale.set(CAR_SCALE, CAR_SCALE, CAR_SCALE);
           car.rotation.y = Math.PI;
@@ -514,24 +513,21 @@
         (err) => console.warn('car.glb failed, keeping box car:', err)
       );
 
-      // Traffic GLBs — load in background, fall back to box cars
+      // Traffic GLBs — box placeholders available immediately
       const trafficFiles = [
         { file: 'assets/car-side.glb',  rotY: Math.PI,     c1: 0x0044ff, c2: 0x0033cc },
         { file: 'assets/car-side1.glb', rotY: Math.PI,     c1: 0xffaa00, c2: 0xcc8800 },
         { file: 'assets/car-side2.glb', rotY: Math.PI / 2, c1: 0x00bb44, c2: 0x009933 },
       ];
       trafficFiles.forEach(({ file, rotY, c1, c2 }) => {
-        // Add a colored box car as placeholder traffic immediately
         const placeholder = buildBoxCar(c1, c2);
         placeholder.scale.set(CAR_SCALE, CAR_SCALE, CAR_SCALE);
         placeholder.rotation.y = rotY;
         trafficTemplates.push(placeholder);
 
-        // Try to upgrade to real GLB
         loader.load(file,
           (tGltf) => {
             tGltf.scene.rotation.y = rotY;
-            // Replace placeholder with real model
             const idx = trafficTemplates.indexOf(placeholder);
             if (idx !== -1) trafficTemplates[idx] = tGltf.scene;
           },
@@ -539,6 +535,8 @@
           (err) => console.warn('Traffic GLB skipped, using box:', file, err)
         );
       });
+
+    }, 100);
 
     }, 100);
 
@@ -614,17 +612,15 @@
             continue;
           }
 
-          // Collision with player — tightened box to prevent ghost crashes
-          if (car) {
-            const dx = Math.abs(tc.position.x - car.position.x);
-            const dz = Math.abs(tc.position.z - car.position.z);
-            if (dx < 1.4 && dz < 2.2) {
-              triggerShake(SHAKE_COLLISION.duration, SHAKE_COLLISION.intensity);
-              triggerGameOver();
-            } else if (dx < 2.6 && dz < 3.5) {
-              // Near-miss zone
-              triggerShake(SHAKE_NEAR_MISS.duration, SHAKE_NEAR_MISS.intensity);
-            }
+          // Collision — player car is always near Z=0, traffic approaches from negative Z
+          // Hit when traffic reaches player's Z level AND same lane X
+          const dx = Math.abs(tc.position.x - carCurrentX);
+          const dz = Math.abs(tc.position.z);  // how close to player's Z=0
+          if (dx < 1.4 && dz < 2.2) {
+            triggerShake(SHAKE_COLLISION.duration, SHAKE_COLLISION.intensity);
+            triggerGameOver();
+          } else if (dx < 2.6 && dz < 3.5) {
+            triggerShake(SHAKE_NEAR_MISS.duration, SHAKE_NEAR_MISS.intensity);
           }
         }
 
