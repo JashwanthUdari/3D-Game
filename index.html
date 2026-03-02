@@ -444,24 +444,11 @@
       if (!window._startRequested) return;
       clearInterval(waitInterval);
 
-      // Safety timeout — if loading takes >10s, force-start anyway
-      const loadTimeout = setTimeout(() => {
-        if (!window._gameReady) {
-          console.warn('Load timeout — forcing game start');
-          document.getElementById('loadingScreen').classList.remove('active');
-          document.getElementById('ui').style.display = 'block';
-          window._gameReady = true;
-          window._isPaused  = false;
-        }
-      }, 10000);
-
       const loader = new GLTFLoader();
 
-      // 1) Load player car first
-      loader.load(
-        'assets/car.glb',
+      // ── Load player car first — game starts as soon as this finishes ──
+      loader.load('assets/car.glb',
         (gltf) => {
-          clearTimeout(loadTimeout);
           car = gltf.scene;
           car.scale.set(CAR_SCALE, CAR_SCALE, CAR_SCALE);
           car.position.set(0, 0, 0);
@@ -469,39 +456,12 @@
           car.castShadow = true;
           scene.add(car);
 
-          // 2) Load 3 traffic models in parallel
-          // rotation.y correction per file — adjust if a model still looks sideways:
-          // 0        = facing toward camera (back of car visible) ✅ same as player
-          // Math.PI  = facing away from camera (front of car visible)
-          // Math.PI/2  = rotated 90° right (side view)
-          // -Math.PI/2 = rotated 90° left  (side view)
-          const trafficFiles = [
-            { file: 'assets/car-side.glb',  rotY: Math.PI      },
-            { file: 'assets/car-side1.glb', rotY: Math.PI      },
-            { file: 'assets/car-side2.glb', rotY: Math.PI / 2  }, // ← fix: was side-on
-          ];
-          trafficFiles.forEach(({ file, rotY }) => {
-            loader.load(
-              file,
-              (tGltf) => {
-                tGltf.scene.rotation.y = rotY;
-                trafficTemplates.push(tGltf.scene);
-                trafficLoaded++;
-              },
-              undefined,
-              (err) => {
-                console.warn('Traffic GLB skipped:', file, err);
-                trafficLoaded++;
-              }
-            );
-          });
-
+          // ✅ Game starts NOW — don't wait for traffic
           document.getElementById('loadingScreen').classList.remove('active');
           document.getElementById('ui').style.display = 'block';
           window._gameReady = true;
           window._isPaused  = false;
 
-          // ── Play music now that everything is loaded ──
           if (selectedMusic && selectedMusic !== 'none') {
             const audio = document.getElementById('bgMusic');
             audio.src = selectedMusic === 'classic'
@@ -510,15 +470,32 @@
             audio.volume = 0.45;
             audio.play().catch(() => {});
           }
+
+          // ── Traffic loads silently in background after game starts ──
+          const trafficFiles = [
+            { file: 'assets/car-side.glb',  rotY: Math.PI     },
+            { file: 'assets/car-side1.glb', rotY: Math.PI     },
+            { file: 'assets/car-side2.glb', rotY: Math.PI / 2 },
+          ];
+          trafficFiles.forEach(({ file, rotY }) => {
+            loader.load(file,
+              (tGltf) => {
+                tGltf.scene.rotation.y = rotY;
+                trafficTemplates.push(tGltf.scene);
+              },
+              undefined,
+              (err) => console.warn('Traffic GLB skipped:', file, err)
+            );
+          });
         },
         (xhr) => {
-          // Update progress bar smoothly
           if (xhr.total) {
-            const pct = Math.min(90, (xhr.loaded / xhr.total * 90)).toFixed(0);
+            const pct = Math.round(xhr.loaded / xhr.total * 100);
             document.getElementById('loadBar').style.width = pct + '%';
           }
         },
         (err) => {
+          // car.glb failed — start anyway with no car
           console.error('car.glb failed:', err);
           document.getElementById('loadingScreen').classList.remove('active');
           document.getElementById('ui').style.display = 'block';
