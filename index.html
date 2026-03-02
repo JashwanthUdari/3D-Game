@@ -312,10 +312,13 @@
   </script>
 
   <script>
-    let selectedMusic = null;
+    window._selectedMusic  = null;
+    window._startRequested = false;
+    window._gameReady      = false;
+    window._isPaused       = false;
 
     function selectMusic(type) {
-      selectedMusic = type;
+      window._selectedMusic = type;
       document.getElementById('classicBtn').classList.remove('selected');
       document.getElementById('gameBtn').classList.remove('selected');
       if (type === 'classic') document.getElementById('classicBtn').classList.add('selected');
@@ -335,7 +338,7 @@
     function startGame() {
       document.getElementById('startScreen').style.display = 'none';
       document.getElementById('loadingScreen').classList.add('active');
-      document.getElementById('loadBar').style.width = '10%'; // show initial progress
+      document.getElementById('loadBar').style.width = '5%';
       window._startRequested = true;
     }
 
@@ -477,9 +480,9 @@
       document.getElementById('ui').style.display = 'block';
       window._gameReady = true;
       window._isPaused  = false;
-      if (selectedMusic && selectedMusic !== 'none') {
+      if (window._selectedMusic && window._selectedMusic !== 'none') {
         const audio = document.getElementById('bgMusic');
-        audio.src = selectedMusic === 'classic'
+        audio.src = window._selectedMusic === 'classic'
           ? 'assets/Classic-Theme.mp3'
           : 'assets/Game-Theme.mp3';
         audio.volume = 0.45;
